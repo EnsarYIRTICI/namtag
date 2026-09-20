@@ -1,0 +1,21 @@
+# Bagimliliklar (sunucuda npm install ile kurulur; tailwind-build/node_modules dahil)
+node_modules/
+
+# Canli veri: kullanici sifre hash'leri, oturumlar ve kunye kayitlari.
+# ASLA GitHub'a gonderilmemeli.
+data/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Gizli ayarlar / loglar
+.env
+.env.*
+*.log
+
+# Isletim sistemi / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

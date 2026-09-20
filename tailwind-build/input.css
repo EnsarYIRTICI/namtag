@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply m-0 bg-cream-50 dark:bg-stone-950 text-stone-800 dark:text-stone-100 min-h-screen;
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+  }
+}
+
+@layer components {
+  header { @apply px-6 pt-5 pb-3.5 border-b border-stone-200 dark:border-stone-700; }
+  header h1 { @apply m-0 mb-1 text-xl font-semibold; }
+  header p { @apply m-0 text-stone-500 dark:text-stone-400 text-sm; }
+
+  .wrap { @apply max-w-[1100px] mx-auto p-5; }
+  .layout-grid { @apply grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-5; }
+
+  .panel { @apply bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-4 mb-[18px]; }
+  .panel h2 { @apply m-0 mb-2.5 text-[15px] font-semibold flex items-center gap-2; }
+
+  .badge { @apply inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-clay-500 text-white text-xs font-semibold; }
+
+  .drop { @apply border-2 border-dashed border-stone-200 dark:border-stone-700 rounded-[10px] p-[22px] text-center text-stone-500 dark:text-stone-400 text-[13px] cursor-pointer transition-colors duration-150; }
+  .drop.drag { @apply border-clay-500 bg-clay-500/10; }
+  .drop b { @apply text-stone-800 dark:text-stone-100; }
+  input[type=file] { @apply hidden; }
+
+  .status { @apply mt-2.5 text-[12.5px] min-h-[18px] text-stone-500 dark:text-stone-400 whitespace-pre-line; }
+  .status.ok { @apply text-emerald-600 dark:text-emerald-400; }
+  .status.err { @apply text-red-600 dark:text-red-400; }
+
+  .fmts { @apply flex gap-1.5 mt-2.5 flex-wrap; }
+  .fmt-chip { @apply text-[11px] px-2 py-[3px] rounded-full border border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400; }
+
+  .search-box { @apply flex gap-2 mb-3; }
+  .search-box input { @apply flex-1 px-3 py-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-cream-50 dark:bg-stone-800 text-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-clay-500 focus:ring-offset-1 dark:focus:ring-offset-stone-900; }
+
+  .results { @apply flex flex-col gap-2 max-h-[520px] overflow-y-auto; }
+  .rcard { @apply border border-stone-200 dark:border-stone-700 rounded-[9px] px-3 py-2.5 flex justify-between items-center gap-2.5 text-[13px]; }
+  .rcard .rinfo b { @apply text-[14.5px]; }
+  .rcard .rinfo .sub { @apply text-stone-500 dark:text-stone-400 text-xs mt-0.5 block; }
+  .rcard button { @apply flex-shrink-0 border-0 bg-clay-500 text-white px-3.5 py-[7px] rounded-md text-[13px] cursor-pointer font-semibold transition-colors hover:bg-clay-600 disabled:bg-stone-200 disabled:text-stone-400 dark:disabled:bg-stone-700 dark:disabled:text-stone-500 disabled:cursor-default; }
+
+  .empty { @apply text-stone-500 dark:text-stone-400 text-[13px] py-3.5 px-0.5; }
+
+  .sel-list { @apply flex flex-col gap-1.5 mb-3; }
+  .sel-item { @apply flex justify-between items-center border border-stone-200 dark:border-stone-700 rounded-lg px-2.5 py-[7px] text-[13px]; }
+  .sel-item .x { @apply cursor-pointer text-red-600 dark:text-red-400 font-bold px-1.5 text-[15px]; }
+
+  .printbtn { @apply w-full py-3 border-0 rounded-lg bg-emerald-600 text-white text-[14.5px] font-bold cursor-pointer mt-1 transition-colors hover:bg-emerald-700 disabled:bg-stone-200 disabled:text-stone-400 dark:disabled:bg-stone-700 dark:disabled:text-stone-500 disabled:cursor-default; }
+  .clearbtn { @apply w-full py-2 border border-stone-200 dark:border-stone-700 rounded-lg bg-transparent text-stone-500 dark:text-stone-400 text-xs cursor-pointer mt-1.5; }
+  .maint { @apply mt-1.5 text-[11.5px] text-stone-500 dark:text-stone-400 text-right cursor-pointer underline block; }
+}
+
+/* Print-only label sheet: kept as plain CSS since it targets a fixed
+   physical A4 layout rather than responsive screen layout. */
+#print-area { display: none; }
+.label-box {
+  border: 1.2px dashed #444;
+  padding: 8px 10px;
+  font-family: Arial, sans-serif;
+  color: #000;
+  font-size: 11px;
+  line-height: 1.35;
+  break-inside: avoid;
+  display: flex;
+  gap: 8px;
+}
+.label-box .ltext { flex: 1; min-width: 0; }
+.label-box .urun { font-weight: 700; font-size: 13px; text-transform: uppercase; }
+.label-box .tip { font-size: 10.5px; margin-bottom: 3px; }
+.label-box .kno { font-size: 10px; margin-bottom: 4px; }
+.label-box .row { display: flex; justify-content: space-between; gap: 6px; }
+.label-box .foot { font-size: 8px; color: #333; margin-top: 5px; line-height: 1.25; }
+.label-box .qrwrap { flex-shrink: 0; text-align: center; width: 62px; }
+.label-box .qrwrap div { margin: 0 auto; }
+.label-box .qrwrap .qrcap { font-size: 6.5px; color: #555; margin-top: 2px; }
+
+@media print {
+  body * { visibility: hidden; }
+  #print-area, #print-area * { visibility: visible; }
+  #print-area {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  @page { size: A4; margin: 10mm; }
+}

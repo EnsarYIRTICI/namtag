@@ -1,0 +1,22 @@
+[Unit]
+Description=Kunye Arsivi
+After=network.target
+
+[Service]
+Type=simple
+User=kunye
+WorkingDirectory=/opt/kunye-arsivi
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=3
+Environment=PORT=3000
+Environment=KUNYE_DATA_DIR=/opt/kunye-arsivi/data
+# Nginx arkasinda calisiyorsaniz (onerilen) asagidaki iki satiri acin:
+# Environment=KUNYE_TRUST_PROXY=1
+# Environment=HOST=127.0.0.1
+# Oturum sureleri (istege bagli): bosta kalma / en fazla omur
+# Environment=KUNYE_SESSION_IDLE_HOURS=12
+# Environment=KUNYE_SESSION_MAX_DAYS=7
+
+[Install]
+WantedBy=multi-user.target
