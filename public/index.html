@@ -130,6 +130,7 @@
           </p>
         </div>
         <div style="text-align: right; font-size: 12.5px; white-space: nowrap">
+          <span id="verInfo" style="opacity: 0.5; margin-right: 8px"></span>
           <span id="whoami" style="opacity: 0.65"></span>
           <button
             id="logoutBtn"
@@ -914,7 +915,17 @@
         fetch("/api/me")
           .then((r) => (r.ok ? r.json() : null))
           .then((d) => {
-            if (d) document.getElementById("whoami").textContent = d.username;
+            if (!d) return;
+            document.getElementById("whoami").textContent = d.username;
+            const v = document.getElementById("verInfo");
+            v.textContent =
+              "v" + d.version + (d.commit ? " · " + d.commit : "");
+            v.title =
+              "Sürüm " +
+              d.version +
+              (d.commit ? ", commit " + d.commit : "") +
+              "\nServis başlangıcı: " +
+              new Date(d.startedAt).toLocaleString("tr-TR");
           })
           .catch(() => {});
 

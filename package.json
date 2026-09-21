@@ -1,6 +1,6 @@
 {
   "name": "kunye-arsivi",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Manav kunye arsivi - CSV/HTML/PDF yukleme, arama, A4 sablon yazdirma",
   "main": "server.js",
   "scripts": {
