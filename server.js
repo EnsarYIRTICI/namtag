@@ -67,24 +67,13 @@ CREATE INDEX IF NOT EXISTS idx_urun ON kunyeler(urun);
 `);
 
 // Ayni kunye no bir kez basilir: varsa DOKUNMA (ustune yazma yok, guncelleme yok).
-// Duzeltme gerekirse PUT /api/kunyeler/:kunyeNo (arayuzdeki "Duzenle") kullanilir.
+// Yanlis evrak yuklendiyse evrak bazinda silinir (POST /api/evraklar/sil), sonra dogrusu yuklenir.
 const insertStmt = db.prepare(`
 INSERT INTO kunyeler (kunyeNo, urun, tip, bildirimTarihi, uretimYeri, uretimTarihi, ureticiAdi, miktar, fiyat, kaynakDosya, yuklemeZamani)
 VALUES (@kunyeNo, @urun, @tip, @bildirimTarihi, @uretimYeri, @uretimTarihi, @ureticiAdi, @miktar, @fiyat, @kaynakDosya, @yuklemeZamani)
 ON CONFLICT(kunyeNo) DO NOTHING
 `);
 const KUNYE_NO_RE = /^\d{8,}$/;
-const EDITABLE = [
-  "urun",
-  "tip",
-  "bildirimTarihi",
-  "uretimYeri",
-  "uretimTarihi",
-  "ureticiAdi",
-  "miktar",
-  "fiyat",
-];
-const MAX_FIELD = 200;
 const str = (v) =>
   typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim();
 
@@ -282,39 +271,6 @@ app.post("/api/kunyeler/bulk", (req, res) => {
   });
 });
 
-app.put("/api/kunyeler/:kunyeNo", (req, res) => {
-  const body = req.body || {};
-  const vals = {};
-  for (const k of EDITABLE) {
-    if (k in body) {
-      const v = str(body[k]);
-      if (v.length > MAX_FIELD)
-        return res.status(400).json({ error: k + " cok uzun." });
-      vals[k] = v;
-    }
-  }
-  if ("urun" in vals && !vals.urun)
-    return res.status(400).json({ error: "Urun adi bos olamaz." });
-  const keys = Object.keys(vals);
-  if (keys.length === 0)
-    return res.status(400).json({ error: "Guncellenecek alan yok." });
-  // kunyeNo degistirilemez (kimlik); yanlissa sil + yeniden yukle
-  const info = db
-    .prepare(
-      "UPDATE kunyeler SET " +
-        keys.map((k) => k + " = @" + k).join(", ") +
-        " WHERE kunyeNo = @kunyeNo",
-    )
-    .run({ ...vals, kunyeNo: req.params.kunyeNo });
-  if (info.changes === 0)
-    return res.status(404).json({ error: "Kunye bulunamadi." });
-  res.json(
-    db
-      .prepare("SELECT * FROM kunyeler WHERE kunyeNo = ?")
-      .get(req.params.kunyeNo),
-  );
-});
-
 app.delete("/api/kunyeler/:kunyeNo", (req, res) => {
   const info = db
     .prepare("DELETE FROM kunyeler WHERE kunyeNo = ?")
@@ -322,6 +278,31 @@ app.delete("/api/kunyeler/:kunyeNo", (req, res) => {
   if (info.changes === 0)
     return res.status(404).json({ error: "Kunye bulunamadi." });
   res.json({ ok: true });
+});
+
+// ---- Evrak (yuklenen PDF/CSV/HTML dosyasi) bazinda yonetim ----
+// Bir kunye, ilk yuklendigi dosyanin adiyla (kaynakDosya) etiketlidir.
+app.get("/api/evraklar", (req, res) => {
+  const rows = db
+    .prepare(
+      `
+    SELECT kaynakDosya, COUNT(*) AS adet, MIN(yuklemeZamani) AS ilk, MAX(yuklemeZamani) AS son
+    FROM kunyeler GROUP BY kaynakDosya ORDER BY son DESC
+  `,
+    )
+    .all();
+  res.json(rows);
+});
+
+app.post("/api/evraklar/sil", (req, res) => {
+  const ad =
+    req.body && typeof req.body.kaynakDosya === "string"
+      ? req.body.kaynakDosya
+      : null;
+  if (ad === null)
+    return res.status(400).json({ error: "kaynakDosya gerekli" });
+  const info = db.prepare("DELETE FROM kunyeler WHERE kaynakDosya = ?").run(ad);
+  res.json({ deleted: info.changes });
 });
 
 app.post("/api/kunyeler/cleanup", (req, res) => {
