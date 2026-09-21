@@ -1,392 +1,665 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Künye Arşivi</title>
-<script src="/vendor/pdfjs/pdf.min.js"></script>
-<script src="/vendor/qrcode.min.js"></script>
-<link rel="stylesheet" href="/vendor/tailwind.css">
-</head>
-<body>
-
-<header>
-  <div class="wrap" style="padding:0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-    <div>
-      <h1>🏷️ Künye Arşivi</h1>
-      <p>Manav ürün künyelerini arşivleyin, arayın, A4 şablona ekleyip yazdırın.</p>
-    </div>
-    <div style="text-align:right;font-size:12.5px;white-space:nowrap;">
-      <span id="whoami" style="opacity:.65;"></span>
-      <button id="logoutBtn" type="button" style="margin-left:8px;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;color:inherit;font:inherit;">Çıkış</button>
-    </div>
-  </div>
-</header>
-
-<div class="wrap">
-  <div class="layout-grid">
-    <div>
-      <div class="panel">
-        <h2>📥 Künye Yükle</h2>
-        <div class="drop" id="drop">
-          <div><b>Dosya seçmek için tıklayın</b> ya da dosyaları buraya sürükleyin</div>
-          <div style="margin-top:4px;">Birden fazla dosya, birden fazla format karışık seçilebilir</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Künye Arşivi</title>
+    <script src="/vendor/pdfjs/pdf.min.js"></script>
+    <script src="/vendor/qrcode.min.js"></script>
+    <link rel="stylesheet" href="/vendor/tailwind.css" />
+  </head>
+  <body>
+    <header>
+      <div
+        class="wrap"
+        style="
+          padding: 0;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+        "
+      >
+        <div>
+          <h1>🏷️ Künye Arşivi</h1>
+          <p>
+            Manav ürün künyelerini arşivleyin, arayın, A4 şablona ekleyip
+            yazdırın.
+          </p>
         </div>
-        <input type="file" id="fileInput" accept=".csv,.html,.htm,.pdf" multiple>
-        <div class="fmts">
-          <span class="fmt-chip">.csv</span>
-          <span class="fmt-chip">.html / .htm</span>
-          <span class="fmt-chip">.pdf</span>
+        <div style="text-align: right; font-size: 12.5px; white-space: nowrap">
+          <span id="whoami" style="opacity: 0.65"></span>
+          <button
+            id="logoutBtn"
+            type="button"
+            style="
+              margin-left: 8px;
+              background: none;
+              border: 0;
+              padding: 0;
+              cursor: pointer;
+              text-decoration: underline;
+              color: inherit;
+              font: inherit;
+            "
+          >
+            Çıkış
+          </button>
         </div>
-        <div class="status" id="uploadStatus"></div>
       </div>
+    </header>
 
-      <div class="panel">
-        <h2>🔍 Ürün Ara <span class="badge" id="countBadge">0</span></h2>
-        <div class="search-box">
-          <input type="text" id="searchInput" placeholder="örn: domates, limon, şeftali..." autocomplete="off">
+    <div class="wrap">
+      <div class="layout-grid">
+        <div>
+          <div class="panel">
+            <h2>📥 Künye Yükle</h2>
+            <div class="drop" id="drop">
+              <div>
+                <b>Dosya seçmek için tıklayın</b> ya da dosyaları buraya
+                sürükleyin
+              </div>
+              <div style="margin-top: 4px">
+                Birden fazla dosya, birden fazla format karışık seçilebilir
+              </div>
+            </div>
+            <input
+              type="file"
+              id="fileInput"
+              accept=".csv,.html,.htm,.pdf"
+              multiple
+            />
+            <div class="fmts">
+              <span class="fmt-chip">.csv</span>
+              <span class="fmt-chip">.html / .htm</span>
+              <span class="fmt-chip">.pdf</span>
+            </div>
+            <div class="status" id="uploadStatus"></div>
+          </div>
+
+          <div class="panel">
+            <h2>🔍 Ürün Ara <span class="badge" id="countBadge">0</span></h2>
+            <div class="search-box">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="örn: domates, limon, şeftali..."
+                autocomplete="off"
+              />
+            </div>
+            <div class="results" id="results">
+              <div class="empty">Aramaya başlamak için ürün adı yazın.</div>
+            </div>
+          </div>
         </div>
-        <div class="results" id="results"><div class="empty">Aramaya başlamak için ürün adı yazın.</div></div>
+
+        <div>
+          <div class="panel">
+            <h2>
+              🧾 Seçili Künyeler <span class="badge" id="selBadge">0</span>
+            </h2>
+            <div class="sel-list" id="selList">
+              <div class="empty">
+                Henüz künye eklenmedi. Soldan "Ekle" ile ekleyin.
+              </div>
+            </div>
+            <button class="printbtn" id="printBtn" disabled>
+              🖨️ A4 Yazdır
+            </button>
+            <button class="clearbtn" id="clearBtn">Seçilenleri temizle</button>
+          </div>
+          <div class="maint" id="maintBtn">
+            Bakım: 6 aydan eski kayıtları temizle
+          </div>
+        </div>
       </div>
     </div>
 
-    <div>
-      <div class="panel">
-        <h2>🧾 Seçili Künyeler <span class="badge" id="selBadge">0</span></h2>
-        <div class="sel-list" id="selList"><div class="empty">Henüz künye eklenmedi. Soldan "Ekle" ile ekleyin.</div></div>
-        <button class="printbtn" id="printBtn" disabled>🖨️ A4 Yazdır</button>
-        <button class="clearbtn" id="clearBtn">Seçilenleri temizle</button>
-      </div>
-      <div class="maint" id="maintBtn">Bakım: 6 aydan eski kayıtları temizle</div>
-    </div>
-  </div>
-</div>
+    <div id="print-area"></div>
 
-<div id="print-area"></div>
+    <script>
+      (function () {
+        const FIELD_LABELS = {
+          "Bildirim Tarihi": "bildirimTarihi",
+          "Üretim Yeri": "uretimYeri",
+          "Üretim Tarihi": "uretimTarihi",
+          "Üreticisinin Adı": "ureticiAdi",
+          Miktar: "miktar",
+          "Alış Fiyatı": "fiyat",
+        };
+        const FIELD_RE =
+          /^(Bildirim Tarihi|Üretim Yeri|Üretim Tarihi|Üreticisinin Adı|Miktar|Alış Fiyatı)\s*:\s*;?(.*)$/;
+        const KNO_RE = /^;?(\d{8,})\s*;?$/;
 
-<script>
-(function(){
-  const FIELD_LABELS = {
-    'Bildirim Tarihi': 'bildirimTarihi',
-    'Üretim Yeri': 'uretimYeri',
-    'Üretim Tarihi': 'uretimTarihi',
-    'Üreticisinin Adı': 'ureticiAdi',
-    'Miktar': 'miktar',
-    'Alış Fiyatı': 'fiyat'
-  };
-  const FIELD_RE = /^(Bildirim Tarihi|Üretim Yeri|Üretim Tarihi|Üreticisinin Adı|Miktar|Alış Fiyatı)\s*:\s*;?(.*)$/;
-  const KNO_RE = /^;?(\d{8,})\s*;?$/;
-
-  function isFootnoteStart(line){ return line.indexOf('Gümrük') !== -1 && line.indexOf('Bakanlığı') !== -1; }
-  function isFootnoteEnd(line){ return /sorgulayabilirsiniz\.?;?$/i.test(line); }
-
-  function linesToRecords(lines){
-    const records = [];
-    let cur = null, stage = 'urun', lastFieldKey = null;
-    function finalize(){ if(cur && cur.urun && cur.kunyeNo){ records.push(cur); } cur = null; stage = 'urun'; lastFieldKey = null; }
-    for(let line of lines){
-      line = line.replace(/\u00A0/g, ' ').trim();
-      if(!line) continue;
-      if(isFootnoteStart(line) || stage === 'footnote'){
-        stage = 'footnote';
-        if(isFootnoteEnd(line)) finalize();
-        continue;
-      }
-      if(stage === 'urun'){ cur = {}; cur.urun = line.replace(/;+$/,'').trim(); stage = 'tip'; continue; }
-      if(stage === 'tip'){ cur.tip = line.replace(/;+$/,'').trim(); stage = 'kno'; continue; }
-      if(stage === 'kno'){
-        const km = line.match(KNO_RE);
-        if(km){ cur.kunyeNo = km[1]; stage = 'fields'; lastFieldKey = null; }
-        continue;
-      }
-      if(stage === 'fields'){
-        const fm = line.match(FIELD_RE);
-        if(fm){
-          const key = FIELD_LABELS[fm[1]];
-          const val = fm[2].replace(/;+$/,'').trim();
-          cur[key] = val; lastFieldKey = key;
-        } else if(lastFieldKey){
-          cur[lastFieldKey] = (cur[lastFieldKey] + ' ' + line.replace(/;+$/,'').trim()).trim();
+        function isFootnoteStart(line) {
+          return (
+            line.indexOf("Gümrük") !== -1 && line.indexOf("Bakanlığı") !== -1
+          );
         }
-        continue;
-      }
-    }
-    if(cur && cur.urun && cur.kunyeNo && cur.fiyat) records.push(cur);
-    for(const r of records){
-      if(r.fiyat){
-        let v = r.fiyat.replace(/\?\s*$/,'').trim();
-        if(!/₺/.test(v)) v = v + ' ₺';
-        r.fiyat = v;
-      }
-    }
-    return records;
-  }
-
-  async function extractCsvLines(file){
-    const buf = await file.arrayBuffer();
-    let text;
-    try{ text = new TextDecoder('windows-1254').decode(buf); }
-    catch(e){ text = new TextDecoder('utf-8').decode(buf); }
-    return text.split(/\r\n|\n|\r/).map(l => l.trim()).filter(l => l.length > 0);
-  }
-
-  async function extractHtmlLines(file){
-    const buf = await file.arrayBuffer();
-    let text;
-    try{ text = new TextDecoder('utf-8').decode(buf); }
-    catch(e){ text = new TextDecoder('windows-1254').decode(buf); }
-    const doc = new DOMParser().parseFromString(text, 'text/html');
-    let nodes = Array.from(doc.querySelectorAll('nobr'));
-    if(nodes.length === 0){
-      nodes = Array.from(doc.querySelectorAll('td')).filter(td => !td.querySelector('table,td'));
-    }
-    return nodes.map(n => (n.textContent || '').replace(/\u00A0/g,' ').trim()).filter(l => l.length > 0);
-  }
-
-  let pdfWorkerReady = false;
-  function ensurePdfJs(){
-    if(pdfWorkerReady) return true;
-    const lib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
-    if(!lib) return false;
-    lib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.js';
-    window.pdfjsLib = lib;
-    pdfWorkerReady = true;
-    return true;
-  }
-
-  async function extractPdfLines(file){
-    if(!ensurePdfJs()) throw new Error('PDF okuyucu kütüphanesi yüklenemedi. CSV ya da HTML formatını deneyin.');
-    const buf = await file.arrayBuffer();
-    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
-    const lines = [];
-    for(let p = 1; p <= pdf.numPages; p++){
-      const page = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      let bufLine = '';
-      for(const item of content.items){
-        bufLine += item.str;
-        if(item.hasEOL){
-          const t = bufLine.replace(/\u00A0/g,' ').trim();
-          if(t) lines.push(t);
-          bufLine = '';
+        function isFootnoteEnd(line) {
+          return /sorgulayabilirsiniz\.?;?$/i.test(line);
         }
-      }
-      const t = bufLine.replace(/\u00A0/g,' ').trim();
-      if(t) lines.push(t);
-    }
-    return lines;
-  }
 
-  async function extractLinesFromFile(file){
-    const name = file.name.toLowerCase();
-    if(name.endsWith('.csv')) return extractCsvLines(file);
-    if(name.endsWith('.html') || name.endsWith('.htm')) return extractHtmlLines(file);
-    if(name.endsWith('.pdf')) return extractPdfLines(file);
-    throw new Error('Desteklenmeyen dosya türü: ' + file.name);
-  }
-
-  function parseTRDateTime(s){
-    if(!s) return 0;
-    const m = s.match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
-    if(!m) return 0;
-    return new Date(+m[3], +m[2]-1, +m[1], +m[4], +m[5], +m[6]).getTime();
-  }
-  function trUpper(s){ return (s||'').replace(/i/g,'İ').replace(/ı/g,'I').toLocaleUpperCase('tr-TR'); }
-
-  let allRecords = [];
-  let selected = [];
-
-  const statusEl = document.getElementById('uploadStatus');
-  const resultsEl = document.getElementById('results');
-  const searchInput = document.getElementById('searchInput');
-  const countBadge = document.getElementById('countBadge');
-  const selBadge = document.getElementById('selBadge');
-  const selList = document.getElementById('selList');
-  const printBtn = document.getElementById('printBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const printArea = document.getElementById('print-area');
-  const dropEl = document.getElementById('drop');
-  const fileInput = document.getElementById('fileInput');
-  const maintBtn = document.getElementById('maintBtn');
-
-  // Oturum dustuyse (401) giris sayfasina yonlendir
-  async function apiFetch(url, opts){
-    const res = await fetch(url, opts);
-    if(res.status === 401){ location.href = '/login'; throw new Error('Oturum süresi doldu'); }
-    return res;
-  }
-
-  function setStatus(msg, cls){ statusEl.textContent = msg; statusEl.className = 'status' + (cls ? (' '+cls) : ''); }
-
-  async function loadAll(){
-    try{
-      const res = await apiFetch('/api/kunyeler');
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      allRecords = await res.json();
-      countBadge.textContent = allRecords.length;
-      renderSearch();
-    }catch(e){
-      setStatus('Arşiv okunamadı: ' + e.message, 'err');
-    }
-  }
-
-  async function handleFiles(fileList){
-    const files = Array.from(fileList).filter(f => /\.(csv|html?|pdf)$/i.test(f.name));
-    if(files.length === 0){ setStatus('Lütfen .csv, .html veya .pdf dosyası seçin.', 'err'); return; }
-    let allNewRecords = [];
-    let totalFiles = 0;
-    const errors = [];
-    setStatus('Okunuyor...', '');
-    for(const file of files){
-      try{
-        const lines = await extractLinesFromFile(file);
-        const records = linesToRecords(lines);
-        if(records.length === 0){
-          errors.push(file.name + ': künye kaydı bulunamadı.');
-          continue;
+        function linesToRecords(lines) {
+          const records = [];
+          let cur = null,
+            stage = "urun",
+            lastFieldKey = null,
+            lastPieceLen = 0;
+          function finalize() {
+            if (cur && cur.urun && cur.kunyeNo) {
+              records.push(cur);
+            }
+            cur = null;
+            stage = "urun";
+            lastFieldKey = null;
+          }
+          for (let line of lines) {
+            line = line.replace(/\u00A0/g, " ").trim();
+            if (!line) continue;
+            if (isFootnoteStart(line) || stage === "footnote") {
+              stage = "footnote";
+              if (isFootnoteEnd(line)) finalize();
+              continue;
+            }
+            if (stage === "urun") {
+              cur = {};
+              cur.urun = line.replace(/;+$/, "").trim();
+              stage = "tip";
+              continue;
+            }
+            if (stage === "tip") {
+              cur.tip = line.replace(/;+$/, "").trim();
+              stage = "kno";
+              continue;
+            }
+            if (stage === "kno") {
+              const km = line.match(KNO_RE);
+              if (km) {
+                cur.kunyeNo = km[1];
+                stage = "fields";
+                lastFieldKey = null;
+              }
+              continue;
+            }
+            if (stage === "fields") {
+              const fm = line.match(FIELD_RE);
+              if (fm) {
+                const key = FIELD_LABELS[fm[1]];
+                const val = fm[2].replace(/;+$/, "").trim();
+                cur[key] = val;
+                lastFieldKey = key;
+                lastPieceLen = val.length;
+              } else if (lastFieldKey) {
+                const piece = line.replace(/;+$/, "").trim();
+                // Hal sistemi 'Üretim Yeri'ni tam 25 karakterde, kelime ortasindan bile boler
+                // (ör. 'İSTANBUL/ARNAVUTKÖY/MERKE' + 'Z KÖYLER'). Bu durumda bosluksuz birlestir.
+                // Ayri satirdaki 'KÖYLER' eki ise gercek bir sözcük, bosluk kalmali.
+                const wrapped =
+                  lastFieldKey === "uretimYeri" &&
+                  piece !== "KÖYLER" &&
+                  (lastPieceLen === 25 || piece.charAt(0) === "/");
+                cur[lastFieldKey] = (
+                  cur[lastFieldKey] +
+                  (wrapped ? "" : " ") +
+                  piece
+                ).trim();
+                lastPieceLen = piece.length;
+              }
+              continue;
+            }
+          }
+          if (cur && cur.urun && cur.kunyeNo && cur.fiyat) records.push(cur);
+          for (const r of records) {
+            if (r.fiyat) {
+              let v = r.fiyat.replace(/\?\s*$/, "").trim();
+              if (!/₺/.test(v)) v = v + " ₺";
+              r.fiyat = v;
+            }
+          }
+          return records;
         }
-        for(const r of records) r.kaynakDosya = file.name;
-        allNewRecords = allNewRecords.concat(records);
-        totalFiles++;
-      }catch(e){
-        errors.push(file.name + ': ' + e.message);
-      }
-    }
-    if(allNewRecords.length > 0){
-      setStatus('Kaydediliyor...', '');
-      try{
-        const res = await apiFetch('/api/kunyeler/bulk', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ records: allNewRecords })
+
+        async function extractCsvLines(file) {
+          const buf = await file.arrayBuffer();
+          let text;
+          try {
+            text = new TextDecoder("windows-1254").decode(buf);
+          } catch (e) {
+            text = new TextDecoder("utf-8").decode(buf);
+          }
+          return text
+            .split(/\r\n|\n|\r/)
+            .map((l) => l.trim())
+            .filter((l) => l.length > 0);
+        }
+
+        async function extractHtmlLines(file) {
+          const buf = await file.arrayBuffer();
+          let text;
+          try {
+            text = new TextDecoder("utf-8").decode(buf);
+          } catch (e) {
+            text = new TextDecoder("windows-1254").decode(buf);
+          }
+          const doc = new DOMParser().parseFromString(text, "text/html");
+          let nodes = Array.from(doc.querySelectorAll("nobr"));
+          if (nodes.length === 0) {
+            nodes = Array.from(doc.querySelectorAll("td")).filter(
+              (td) => !td.querySelector("table,td"),
+            );
+          }
+          return nodes
+            .map((n) => (n.textContent || "").replace(/\u00A0/g, " ").trim())
+            .filter((l) => l.length > 0);
+        }
+
+        let pdfWorkerReady = false;
+        function ensurePdfJs() {
+          if (pdfWorkerReady) return true;
+          const lib = window.pdfjsLib || window["pdfjs-dist/build/pdf"];
+          if (!lib) return false;
+          lib.GlobalWorkerOptions.workerSrc = "/vendor/pdfjs/pdf.worker.min.js";
+          window.pdfjsLib = lib;
+          pdfWorkerReady = true;
+          return true;
+        }
+
+        async function extractPdfLines(file) {
+          if (!ensurePdfJs())
+            throw new Error(
+              "PDF okuyucu kütüphanesi yüklenemedi. CSV ya da HTML formatını deneyin.",
+            );
+          const buf = await file.arrayBuffer();
+          const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+          const lines = [];
+          for (let p = 1; p <= pdf.numPages; p++) {
+            const page = await pdf.getPage(p);
+            const content = await page.getTextContent();
+            let bufLine = "";
+            for (const item of content.items) {
+              bufLine += item.str;
+              if (item.hasEOL) {
+                const t = bufLine.replace(/\u00A0/g, " ").trim();
+                if (t) lines.push(t);
+                bufLine = "";
+              }
+            }
+            const t = bufLine.replace(/\u00A0/g, " ").trim();
+            if (t) lines.push(t);
+          }
+          return lines;
+        }
+
+        async function extractLinesFromFile(file) {
+          const name = file.name.toLowerCase();
+          if (name.endsWith(".csv")) return extractCsvLines(file);
+          if (name.endsWith(".html") || name.endsWith(".htm"))
+            return extractHtmlLines(file);
+          if (name.endsWith(".pdf")) return extractPdfLines(file);
+          throw new Error("Desteklenmeyen dosya türü: " + file.name);
+        }
+
+        function parseTRDateTime(s) {
+          if (!s) return 0;
+          const m = s.match(
+            /(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/,
+          );
+          if (!m) return 0;
+          return new Date(
+            +m[3],
+            +m[2] - 1,
+            +m[1],
+            +m[4],
+            +m[5],
+            +m[6],
+          ).getTime();
+        }
+        function trUpper(s) {
+          return (s || "")
+            .replace(/i/g, "İ")
+            .replace(/ı/g, "I")
+            .toLocaleUpperCase("tr-TR");
+        }
+
+        let allRecords = [];
+        let selected = [];
+
+        const statusEl = document.getElementById("uploadStatus");
+        const resultsEl = document.getElementById("results");
+        const searchInput = document.getElementById("searchInput");
+        const countBadge = document.getElementById("countBadge");
+        const selBadge = document.getElementById("selBadge");
+        const selList = document.getElementById("selList");
+        const printBtn = document.getElementById("printBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const printArea = document.getElementById("print-area");
+        const dropEl = document.getElementById("drop");
+        const fileInput = document.getElementById("fileInput");
+        const maintBtn = document.getElementById("maintBtn");
+
+        // Oturum dustuyse (401) giris sayfasina yonlendir
+        async function apiFetch(url, opts) {
+          const res = await fetch(url, opts);
+          if (res.status === 401) {
+            location.href = "/login";
+            throw new Error("Oturum süresi doldu");
+          }
+          return res;
+        }
+
+        function setStatus(msg, cls) {
+          statusEl.textContent = msg;
+          statusEl.className = "status" + (cls ? " " + cls : "");
+        }
+
+        async function loadAll() {
+          try {
+            const res = await apiFetch("/api/kunyeler");
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            allRecords = await res.json();
+            countBadge.textContent = allRecords.length;
+            renderSearch();
+          } catch (e) {
+            setStatus("Arşiv okunamadı: " + e.message, "err");
+          }
+        }
+
+        async function handleFiles(fileList) {
+          const files = Array.from(fileList).filter((f) =>
+            /\.(csv|html?|pdf)$/i.test(f.name),
+          );
+          if (files.length === 0) {
+            setStatus("Lütfen .csv, .html veya .pdf dosyası seçin.", "err");
+            return;
+          }
+          let allNewRecords = [];
+          let totalFiles = 0;
+          const errors = [];
+          setStatus("Okunuyor...", "");
+          for (const file of files) {
+            try {
+              const lines = await extractLinesFromFile(file);
+              const records = linesToRecords(lines);
+              if (records.length === 0) {
+                errors.push(file.name + ": künye kaydı bulunamadı.");
+                continue;
+              }
+              for (const r of records) r.kaynakDosya = file.name;
+              allNewRecords = allNewRecords.concat(records);
+              totalFiles++;
+            } catch (e) {
+              errors.push(file.name + ": " + e.message);
+            }
+          }
+          if (allNewRecords.length > 0) {
+            setStatus("Kaydediliyor...", "");
+            try {
+              const res = await apiFetch("/api/kunyeler/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ records: allNewRecords }),
+              });
+              const data = await res.json();
+              let msg =
+                totalFiles +
+                " dosyadan " +
+                (data.inserted || 0) +
+                " künye kaydı işlendi.";
+              if (errors.length) msg += "\n" + errors.join("\n");
+              setStatus(msg, errors.length ? "err" : "ok");
+            } catch (e) {
+              setStatus("Sunucuya kaydedilemedi: " + e.message, "err");
+            }
+            await loadAll();
+          } else {
+            setStatus(errors.join("\n") || "Hiçbir kayıt bulunamadı.", "err");
+          }
+          fileInput.value = "";
+        }
+
+        dropEl.addEventListener("click", () => fileInput.click());
+        fileInput.addEventListener("change", (e) =>
+          handleFiles(e.target.files),
+        );
+        ["dragenter", "dragover"].forEach((ev) =>
+          dropEl.addEventListener(ev, (e) => {
+            e.preventDefault();
+            dropEl.classList.add("drag");
+          }),
+        );
+        ["dragleave", "drop"].forEach((ev) =>
+          dropEl.addEventListener(ev, (e) => {
+            e.preventDefault();
+            dropEl.classList.remove("drag");
+          }),
+        );
+        dropEl.addEventListener("drop", (e) => {
+          if (
+            e.dataTransfer &&
+            e.dataTransfer.files &&
+            e.dataTransfer.files.length
+          )
+            handleFiles(e.dataTransfer.files);
         });
-        const data = await res.json();
-        let msg = totalFiles + ' dosyadan ' + (data.inserted||0) + ' künye kaydı işlendi.';
-        if(errors.length) msg += '\n' + errors.join('\n');
-        setStatus(msg, errors.length ? 'err' : 'ok');
-      }catch(e){
-        setStatus('Sunucuya kaydedilemedi: ' + e.message, 'err');
-      }
-      await loadAll();
-    } else {
-      setStatus(errors.join('\n') || 'Hiçbir kayıt bulunamadı.', 'err');
-    }
-    fileInput.value = '';
-  }
 
-  dropEl.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-  ['dragenter','dragover'].forEach(ev => dropEl.addEventListener(ev, (e) => { e.preventDefault(); dropEl.classList.add('drag'); }));
-  ['dragleave','drop'].forEach(ev => dropEl.addEventListener(ev, (e) => { e.preventDefault(); dropEl.classList.remove('drag'); }));
-  dropEl.addEventListener('drop', (e) => { if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
-
-  function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-  function renderSearch(){
-    const q = trUpper(searchInput.value.trim());
-    if(!q){ resultsEl.innerHTML = '<div class="empty">Aramaya başlamak için ürün adı yazın.</div>'; return; }
-    const matches = allRecords
-      .filter(r => trUpper(r.urun).includes(q))
-      .sort((a,b) => parseTRDateTime(b.bildirimTarihi) - parseTRDateTime(a.bildirimTarihi))
-      .slice(0, 20);
-    if(matches.length === 0){ resultsEl.innerHTML = '<div class="empty">Eşleşen künye bulunamadı.</div>'; return; }
-    resultsEl.innerHTML = '';
-    for(const r of matches){
-      const already = selected.some(s => s.kunyeNo === r.kunyeNo);
-      const div = document.createElement('div');
-      div.className = 'rcard';
-      div.innerHTML =
-        '<div class="rinfo"><b>' + escapeHtml(r.urun) + '</b>' +
-        '<div class="sub">' + escapeHtml(r.tip || '') + ' &middot; ' + escapeHtml(r.uretimYeri || '') + '</div>' +
-        '<div class="sub">Bildirim: ' + escapeHtml(r.bildirimTarihi || '-') + ' &middot; ' + escapeHtml(r.miktar||'') + ' &middot; ' + escapeHtml(r.fiyat||'') + '</div></div>' +
-        '<button data-kno="' + escapeHtml(r.kunyeNo) + '" ' + (already ? 'disabled' : '') + '>' + (already ? 'Eklendi' : 'Ekle') + '</button>';
-      resultsEl.appendChild(div);
-    }
-    resultsEl.querySelectorAll('button[data-kno]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const kno = btn.getAttribute('data-kno');
-        const rec = allRecords.find(r => r.kunyeNo === kno);
-        if(rec) addSelected(rec);
-      });
-    });
-  }
-
-  function addSelected(rec){ if(selected.some(s => s.kunyeNo === rec.kunyeNo)) return; selected.push(rec); renderSelected(); renderSearch(); }
-  function removeSelected(kno){ selected = selected.filter(s => s.kunyeNo !== kno); renderSelected(); renderSearch(); }
-
-  function renderSelected(){
-    selBadge.textContent = selected.length;
-    printBtn.disabled = selected.length === 0;
-    if(selected.length === 0){
-      selList.innerHTML = '<div class="empty">Henüz künye eklenmedi. Soldan "Ekle" ile ekleyin.</div>';
-    } else {
-      selList.innerHTML = '';
-      for(const r of selected){
-        const div = document.createElement('div');
-        div.className = 'sel-item';
-        div.innerHTML = '<span>' + escapeHtml(r.urun) + '</span><span class="x" data-kno="' + escapeHtml(r.kunyeNo) + '">✕</span>';
-        selList.appendChild(div);
-      }
-      selList.querySelectorAll('.x').forEach(x => x.addEventListener('click', () => removeSelected(x.getAttribute('data-kno'))));
-    }
-    renderPrintArea();
-  }
-
-  function renderPrintArea(){
-    printArea.innerHTML = '';
-    for(const r of selected){
-      const box = document.createElement('div');
-      box.className = 'label-box';
-      const qrId = 'qr-' + r.kunyeNo;
-      box.innerHTML =
-        '<div class="ltext">' +
-        '<div class="urun">' + escapeHtml(r.urun) + '</div>' +
-        '<div class="tip">' + escapeHtml(r.tip || '') + '</div>' +
-        '<div class="kno">Künye No: ' + escapeHtml(r.kunyeNo) + '</div>' +
-        '<div class="row"><span>Bildirim T.:</span><span>' + escapeHtml(r.bildirimTarihi||'-') + '</span></div>' +
-        '<div class="row"><span>Üretim Yeri:</span><span>' + escapeHtml(r.uretimYeri||'-') + '</span></div>' +
-        '<div class="row"><span>Üretim T.:</span><span>' + escapeHtml(r.uretimTarihi||'-') + '</span></div>' +
-        '<div class="row"><span>Üretici:</span><span>' + escapeHtml(r.ureticiAdi||'-') + '</span></div>' +
-        '<div class="row"><span>Miktar:</span><span>' + escapeHtml(r.miktar||'-') + '</span></div>' +
-        '<div class="row"><span>Alış Fiyatı:</span><span>' + escapeHtml(r.fiyat||'-') + '</span></div>' +
-        '<div class="foot">Gümrük ve Ticaret Bakanlığı Hal Kayıt Sisteminden alınan künye bilgilerini www.hal.gov.tr adresinden künye numarası ile sorgulayabilirsiniz.</div>' +
-        '</div>' +
-        '<div class="qrwrap"><div id="' + qrId + '"></div><div class="qrcap">Künye No</div></div>';
-      printArea.appendChild(box);
-      try{
-        if(window.QRCode){
-          new QRCode(document.getElementById(qrId), { text: r.kunyeNo, width: 56, height: 56, correctLevel: QRCode.CorrectLevel.M });
+        function escapeHtml(s) {
+          return (s || "").replace(
+            /[&<>"']/g,
+            (c) =>
+              ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+              })[c],
+          );
         }
-      }catch(e){}
-    }
-  }
 
-  searchInput.addEventListener('input', renderSearch);
-  printBtn.addEventListener('click', () => window.print());
-  clearBtn.addEventListener('click', () => { selected = []; renderSelected(); renderSearch(); });
+        function renderSearch() {
+          const q = trUpper(searchInput.value.trim());
+          if (!q) {
+            resultsEl.innerHTML =
+              '<div class="empty">Aramaya başlamak için ürün adı yazın.</div>';
+            return;
+          }
+          const matches = allRecords
+            .filter((r) => trUpper(r.urun).includes(q))
+            .sort(
+              (a, b) =>
+                parseTRDateTime(b.bildirimTarihi) -
+                parseTRDateTime(a.bildirimTarihi),
+            )
+            .slice(0, 20);
+          if (matches.length === 0) {
+            resultsEl.innerHTML =
+              '<div class="empty">Eşleşen künye bulunamadı.</div>';
+            return;
+          }
+          resultsEl.innerHTML = "";
+          for (const r of matches) {
+            const already = selected.some((s) => s.kunyeNo === r.kunyeNo);
+            const div = document.createElement("div");
+            div.className = "rcard";
+            div.innerHTML =
+              '<div class="rinfo"><b>' +
+              escapeHtml(r.urun) +
+              "</b>" +
+              '<div class="sub">' +
+              escapeHtml(r.tip || "") +
+              " &middot; " +
+              escapeHtml(r.uretimYeri || "") +
+              "</div>" +
+              '<div class="sub">Bildirim: ' +
+              escapeHtml(r.bildirimTarihi || "-") +
+              " &middot; " +
+              escapeHtml(r.miktar || "") +
+              " &middot; " +
+              escapeHtml(r.fiyat || "") +
+              "</div></div>" +
+              '<button data-kno="' +
+              escapeHtml(r.kunyeNo) +
+              '" ' +
+              (already ? "disabled" : "") +
+              ">" +
+              (already ? "Eklendi" : "Ekle") +
+              "</button>";
+            resultsEl.appendChild(div);
+          }
+          resultsEl.querySelectorAll("button[data-kno]").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const kno = btn.getAttribute("data-kno");
+              const rec = allRecords.find((r) => r.kunyeNo === kno);
+              if (rec) addSelected(rec);
+            });
+          });
+        }
 
-  maintBtn.addEventListener('click', async () => {
-    if(!confirm('6 aydan eski künye kayıtları arşivden silinsin mi? Bu işlem geri alınamaz.')) return;
-    setStatus('Temizleniyor...', '');
-    try{
-      const res = await apiFetch('/api/kunyeler/cleanup', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ days: 180 })
-      });
-      const data = await res.json();
-      setStatus(data.deleted + ' eski kayıt silindi.', 'ok');
-      await loadAll();
-    }catch(e){ setStatus('Temizlik başarısız: ' + e.message, 'err'); }
-  });
+        function addSelected(rec) {
+          if (selected.some((s) => s.kunyeNo === rec.kunyeNo)) return;
+          selected.push(rec);
+          renderSelected();
+          renderSearch();
+        }
+        function removeSelected(kno) {
+          selected = selected.filter((s) => s.kunyeNo !== kno);
+          renderSelected();
+          renderSearch();
+        }
 
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    try{ await fetch('/api/logout', { method:'POST' }); }catch(e){}
-    location.href = '/login';
-  });
-  fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => {
-    if(d) document.getElementById('whoami').textContent = d.username;
-  }).catch(() => {});
+        function renderSelected() {
+          selBadge.textContent = selected.length;
+          printBtn.disabled = selected.length === 0;
+          if (selected.length === 0) {
+            selList.innerHTML =
+              '<div class="empty">Henüz künye eklenmedi. Soldan "Ekle" ile ekleyin.</div>';
+          } else {
+            selList.innerHTML = "";
+            for (const r of selected) {
+              const div = document.createElement("div");
+              div.className = "sel-item";
+              div.innerHTML =
+                "<span>" +
+                escapeHtml(r.urun) +
+                '</span><span class="x" data-kno="' +
+                escapeHtml(r.kunyeNo) +
+                '">✕</span>';
+              selList.appendChild(div);
+            }
+            selList
+              .querySelectorAll(".x")
+              .forEach((x) =>
+                x.addEventListener("click", () =>
+                  removeSelected(x.getAttribute("data-kno")),
+                ),
+              );
+          }
+          renderPrintArea();
+        }
 
-  loadAll();
-})();
-</script>
-</body>
+        function renderPrintArea() {
+          printArea.innerHTML = "";
+          const row = (label, val, cls) =>
+            '<div class="row' +
+            (cls ? " " + cls : "") +
+            '"><span>' +
+            label +
+            " :</span><span>" +
+            escapeHtml(val || "-").replace(/\//g, "/<wbr>") +
+            "</span></div>";
+          // A4 sayfasi 2x2 = 4 kart; her sayfa ayri bir .print-page (sayfa sonu garantili)
+          for (let i = 0; i < selected.length; i += 4) {
+            const page = document.createElement("div");
+            page.className = "print-page";
+            printArea.appendChild(page);
+            for (const r of selected.slice(i, i + 4)) {
+              const box = document.createElement("div");
+              box.className = "label-box";
+              box.innerHTML =
+                '<div class="urun">' +
+                escapeHtml(r.urun) +
+                "</div>" +
+                '<div class="tip">' +
+                escapeHtml(r.tip || "") +
+                "</div>" +
+                '<div class="qr"><div></div></div>' +
+                '<div class="kno">' +
+                escapeHtml(r.kunyeNo) +
+                "</div>" +
+                '<div class="rows">' +
+                row("Bildirim Tarihi", r.bildirimTarihi) +
+                row("Üretim Yeri", r.uretimYeri) +
+                row("Üretim Tarihi", r.uretimTarihi) +
+                row("Üreticisinin Adı", r.ureticiAdi, "before-qty") +
+                row("Miktar", r.miktar) +
+                row("Alış Fiyatı", r.fiyat, "before-foot") +
+                "</div>" +
+                '<div class="foot">Gümrük ve Ticaret Bakanlığı Hal Kayıt Sisteminden<br>' +
+                "alınan künye bilgilerini www.hal.gov.tr adresinden<br>" +
+                "künye numarası ile sorgulayabilirsiniz.</div>";
+              page.appendChild(box);
+              try {
+                if (window.QRCode) {
+                  new QRCode(box.querySelector(".qr > div"), {
+                    text: r.kunyeNo,
+                    width: 56,
+                    height: 56,
+                    correctLevel: QRCode.CorrectLevel.M,
+                  });
+                }
+              } catch (e) {}
+            }
+          }
+        }
+
+        searchInput.addEventListener("input", renderSearch);
+        printBtn.addEventListener("click", () => window.print());
+        clearBtn.addEventListener("click", () => {
+          selected = [];
+          renderSelected();
+          renderSearch();
+        });
+
+        maintBtn.addEventListener("click", async () => {
+          if (
+            !confirm(
+              "6 aydan eski künye kayıtları arşivden silinsin mi? Bu işlem geri alınamaz.",
+            )
+          )
+            return;
+          setStatus("Temizleniyor...", "");
+          try {
+            const res = await apiFetch("/api/kunyeler/cleanup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ days: 180 }),
+            });
+            const data = await res.json();
+            setStatus(data.deleted + " eski kayıt silindi.", "ok");
+            await loadAll();
+          } catch (e) {
+            setStatus("Temizlik başarısız: " + e.message, "err");
+          }
+        });
+
+        document
+          .getElementById("logoutBtn")
+          .addEventListener("click", async () => {
+            try {
+              await fetch("/api/logout", { method: "POST" });
+            } catch (e) {}
+            location.href = "/login";
+          });
+        fetch("/api/me")
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            if (d) document.getElementById("whoami").textContent = d.username;
+          })
+          .catch(() => {});
+
+        loadAll();
+      })();
+    </script>
+  </body>
 </html>

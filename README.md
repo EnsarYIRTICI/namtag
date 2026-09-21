@@ -166,6 +166,14 @@ Renk paleti `tailwind-build/tailwind.config.js` içindeki `clay` (vurgu rengi,
 turuncu-kahve) ve `cream` (arka plan) tonlarından geliyor — kurum renklerinize
 göre buradan değiştirebilirsiniz.
 
+## Yazdırma (A4 künye şablonu)
+
+Çıktı, Hal Kayıt Sistemi PDF'i (Report0) ile aynı düzendedir: A4 sayfada 2x2 kart, kart başına
+91 x 122 mm. Sayfa başına 4 künye basılır. Kenar boşlukları CSS ile (`@page { margin: 0 }`)
+ayarlıdır. Tarayıcının yazdır penceresinde **Ölçek: %100 / Varsayılan** seçili olmalı,
+"Sayfaya sığdır" seçmeyin. Kart ölçüleri `tailwind-build/input.css` içindeki `.print-page` ve
+`.label-box` kurallarındadır; değiştirirseniz Tailwind'i yeniden derleyin (aşağıya bakın).
+
 ## Klasör yapısı
 
 ```
