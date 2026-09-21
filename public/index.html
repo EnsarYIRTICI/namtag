@@ -7,6 +7,108 @@
     <script src="/vendor/pdfjs/pdf.min.js"></script>
     <script src="/vendor/qrcode.min.js"></script>
     <link rel="stylesheet" href="/vendor/tailwind.css" />
+    <style>
+      .rcard .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .rcard button.ghost {
+        background: transparent;
+        color: inherit;
+        border: 1px solid #d6d3d1;
+        padding: 4px 10px;
+        font-weight: 500;
+        font-size: 12px;
+      }
+      .rcard button.ghost:hover {
+        background: rgba(120, 113, 108, 0.12);
+      }
+      .rcard button.danger {
+        color: #dc2626;
+        border-color: #fca5a5;
+      }
+      .rcard button.danger:hover {
+        background: rgba(220, 38, 38, 0.1);
+      }
+      dialog#editDlg {
+        border: 1px solid #d6d3d1;
+        border-radius: 12px;
+        padding: 18px;
+        width: min(460px, 94vw);
+        background: #fff;
+        color: #1c1917;
+      }
+      dialog#editDlg::backdrop {
+        background: rgba(0, 0, 0, 0.45);
+      }
+      dialog#editDlg h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+      }
+      dialog#editDlg .kno-line {
+        font-size: 12px;
+        opacity: 0.65;
+        margin-bottom: 10px;
+      }
+      dialog#editDlg label {
+        display: block;
+        font-size: 12px;
+        margin: 8px 0 3px;
+        opacity: 0.8;
+      }
+      dialog#editDlg input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 9px;
+        font: inherit;
+        font-size: 13px;
+        border: 1px solid #d6d3d1;
+        border-radius: 7px;
+        background: transparent;
+        color: inherit;
+      }
+      dialog#editDlg .dlg-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      dialog#editDlg .dlg-actions button {
+        padding: 7px 14px;
+        border-radius: 7px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+        border: 1px solid #d6d3d1;
+        background: transparent;
+        color: inherit;
+      }
+      dialog#editDlg .dlg-actions button.primary {
+        background: #c2410c;
+        border-color: #c2410c;
+        color: #fff;
+        font-weight: 600;
+      }
+      dialog#editDlg .dlg-err {
+        color: #dc2626;
+        font-size: 12.5px;
+        min-height: 16px;
+        margin-top: 8px;
+      }
+      @media (prefers-color-scheme: dark) {
+        dialog#editDlg {
+          background: #1c1917;
+          color: #f5f5f4;
+          border-color: #44403c;
+        }
+        dialog#editDlg input,
+        .rcard button.ghost,
+        dialog#editDlg .dlg-actions button {
+          border-color: #57534e;
+        }
+      }
+    </style>
   </head>
   <body>
     <header>
@@ -114,6 +216,17 @@
         </div>
       </div>
     </div>
+
+    <dialog id="editDlg">
+      <h3>Künyeyi düzenle</h3>
+      <div class="kno-line" id="editKno"></div>
+      <div id="editFields"></div>
+      <div class="dlg-err" id="editErr"></div>
+      <div class="dlg-actions">
+        <button type="button" id="editCancel">Vazgeç</button>
+        <button type="button" class="primary" id="editSave">Kaydet</button>
+      </div>
+    </dialog>
 
     <div id="print-area"></div>
 
@@ -401,13 +514,28 @@
                 body: JSON.stringify({ records: allNewRecords }),
               });
               const data = await res.json();
-              let msg =
-                totalFiles +
-                " dosyadan " +
-                (data.inserted || 0) +
-                " künye kaydı işlendi.";
+              if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+              const added = data.added || 0;
+              const skipped = data.skipped || 0;
+              let msg;
+              if (added === 0 && skipped > 0) {
+                msg =
+                  "Bu künyelerin hepsi (" +
+                  skipped +
+                  ") zaten arşivde kayıtlı, hiçbiri yüklenmedi.";
+              } else {
+                msg = added + " yeni künye eklendi.";
+                if (skipped > 0)
+                  msg += "\n" + skipped + " künye zaten kayıtlıydı, atlandı.";
+              }
+              if (data.invalid)
+                msg +=
+                  "\n" + data.invalid + " kayıt geçersiz olduğu için alınmadı.";
               if (errors.length) msg += "\n" + errors.join("\n");
-              setStatus(msg, errors.length ? "err" : "ok");
+              setStatus(
+                msg,
+                errors.length || (added === 0 && skipped > 0) ? "err" : "ok",
+              );
             } catch (e) {
               setStatus("Sunucuya kaydedilemedi: " + e.message, "err");
             }
@@ -464,8 +592,13 @@
               '<div class="empty">Aramaya başlamak için ürün adı yazın.</div>';
             return;
           }
+          const rawQ = searchInput.value.trim();
           const matches = allRecords
-            .filter((r) => trUpper(r.urun).includes(q))
+            .filter(
+              (r) =>
+                trUpper(r.urun).includes(q) ||
+                (/^\d{4,}$/.test(rawQ) && r.kunyeNo.includes(rawQ)),
+            )
             .sort(
               (a, b) =>
                 parseTRDateTime(b.bildirimTarihi) -
@@ -498,13 +631,19 @@
               " &middot; " +
               escapeHtml(r.fiyat || "") +
               "</div></div>" +
-              '<button data-kno="' +
+              '<div class="actions"><button data-kno="' +
               escapeHtml(r.kunyeNo) +
               '" ' +
               (already ? "disabled" : "") +
               ">" +
               (already ? "Eklendi" : "Ekle") +
-              "</button>";
+              "</button>" +
+              '<button class="ghost" data-edit="' +
+              escapeHtml(r.kunyeNo) +
+              '">Düzenle</button>' +
+              '<button class="ghost danger" data-del="' +
+              escapeHtml(r.kunyeNo) +
+              '">Sil</button></div>';
             resultsEl.appendChild(div);
           }
           resultsEl.querySelectorAll("button[data-kno]").forEach((btn) => {
@@ -514,6 +653,127 @@
               if (rec) addSelected(rec);
             });
           });
+          resultsEl
+            .querySelectorAll("button[data-edit]")
+            .forEach((btn) =>
+              btn.addEventListener("click", () =>
+                openEdit(btn.getAttribute("data-edit")),
+              ),
+            );
+          resultsEl
+            .querySelectorAll("button[data-del]")
+            .forEach((btn) =>
+              btn.addEventListener("click", () =>
+                deleteKunye(btn.getAttribute("data-del")),
+              ),
+            );
+        }
+
+        // ---- Düzenle / Sil ----
+        const EDIT_FIELDS = [
+          ["urun", "Ürün"],
+          ["tip", "Tip"],
+          ["bildirimTarihi", "Bildirim Tarihi"],
+          ["uretimYeri", "Üretim Yeri"],
+          ["uretimTarihi", "Üretim Tarihi"],
+          ["ureticiAdi", "Üreticinin Adı"],
+          ["miktar", "Miktar"],
+          ["fiyat", "Alış Fiyatı"],
+        ];
+        const editDlg = document.getElementById("editDlg");
+        const editFieldsEl = document.getElementById("editFields");
+        const editErr = document.getElementById("editErr");
+        let editingKno = null;
+
+        function openEdit(kno) {
+          const rec = allRecords.find((r) => r.kunyeNo === kno);
+          if (!rec) return;
+          editingKno = kno;
+          document.getElementById("editKno").textContent =
+            "Künye No: " + kno + " (değiştirilemez)";
+          editFieldsEl.innerHTML = "";
+          for (const [key, label] of EDIT_FIELDS) {
+            const l = document.createElement("label");
+            l.textContent = label;
+            const inp = document.createElement("input");
+            inp.type = "text";
+            inp.maxLength = 200;
+            inp.dataset.key = key;
+            inp.value = rec[key] || "";
+            l.appendChild(inp);
+            editFieldsEl.appendChild(l);
+          }
+          editErr.textContent = "";
+          editDlg.showModal();
+        }
+
+        document
+          .getElementById("editCancel")
+          .addEventListener("click", () => editDlg.close());
+
+        document
+          .getElementById("editSave")
+          .addEventListener("click", async () => {
+            const body = {};
+            editFieldsEl
+              .querySelectorAll("input")
+              .forEach((i) => (body[i.dataset.key] = i.value));
+            if (!body.urun.trim()) {
+              editErr.textContent = "Ürün adı boş olamaz.";
+              return;
+            }
+            try {
+              const res = await apiFetch(
+                "/api/kunyeler/" + encodeURIComponent(editingKno),
+                {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(body),
+                },
+              );
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+              // Seçili listedeki kopyayı da güncelle (yazdırma eski veriyle çıkmasın)
+              selected = selected.map((s) =>
+                s.kunyeNo === data.kunyeNo ? data : s,
+              );
+              editDlg.close();
+              await loadAll();
+              renderSelected();
+              setStatus("Künye güncellendi.", "ok");
+            } catch (e) {
+              editErr.textContent = "Kaydedilemedi: " + e.message;
+            }
+          });
+
+        async function deleteKunye(kno) {
+          const rec = allRecords.find((r) => r.kunyeNo === kno);
+          if (!rec) return;
+          if (
+            !confirm(
+              rec.urun +
+                " (" +
+                kno +
+                ") künyesi arşivden silinsin mi? Bu işlem geri alınamaz.",
+            )
+          )
+            return;
+          try {
+            const res = await apiFetch(
+              "/api/kunyeler/" + encodeURIComponent(kno),
+              { method: "DELETE" },
+            );
+            if (!res.ok) {
+              const d = await res.json().catch(() => ({}));
+              throw new Error(d.error || "HTTP " + res.status);
+            }
+            selected = selected.filter((s) => s.kunyeNo !== kno);
+            await loadAll();
+            renderSelected();
+            setStatus("Künye silindi.", "ok");
+          } catch (e) {
+            setStatus("Silinemedi: " + e.message, "err");
+          }
         }
 
         function addSelected(rec) {

@@ -31,14 +31,17 @@ CREATE TABLE IF NOT EXISTS kunyeler (
 CREATE INDEX IF NOT EXISTS idx_urun ON kunyeler(urun);
 `);
 
-const upsertStmt = db.prepare(`
+// Ayni kunye no bir kez basilir: varsa DOKUNMA (ustune yazma yok, guncelleme yok).
+// Duzeltme gerekirse PUT /api/kunyeler/:kunyeNo (arayuzdeki "Duzenle") kullanilir.
+const insertStmt = db.prepare(`
 INSERT INTO kunyeler (kunyeNo, urun, tip, bildirimTarihi, uretimYeri, uretimTarihi, ureticiAdi, miktar, fiyat, kaynakDosya, yuklemeZamani)
 VALUES (@kunyeNo, @urun, @tip, @bildirimTarihi, @uretimYeri, @uretimTarihi, @ureticiAdi, @miktar, @fiyat, @kaynakDosya, @yuklemeZamani)
-ON CONFLICT(kunyeNo) DO UPDATE SET
-  urun=excluded.urun, tip=excluded.tip, bildirimTarihi=excluded.bildirimTarihi,
-  uretimYeri=excluded.uretimYeri, uretimTarihi=excluded.uretimTarihi, ureticiAdi=excluded.ureticiAdi,
-  miktar=excluded.miktar, fiyat=excluded.fiyat, kaynakDosya=excluded.kaynakDosya, yuklemeZamani=excluded.yuklemeZamani
+ON CONFLICT(kunyeNo) DO NOTHING
 `);
+const KUNYE_NO_RE = /^\d{8,}$/;
+const EDITABLE = ['urun', 'tip', 'bildirimTarihi', 'uretimYeri', 'uretimTarihi', 'ureticiAdi', 'miktar', 'fiyat'];
+const MAX_FIELD = 200;
+const str = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
 
 const auth = initAuth(db);
 if (auth.userCount() === 0) {
@@ -157,34 +160,60 @@ app.get('/api/kunyeler', (req, res) => {
 });
 
 app.post('/api/kunyeler/bulk', (req, res) => {
-  const records = req.body.records;
+  const records = req.body && req.body.records;
   if (!Array.isArray(records)) return res.status(400).json({ error: 'records dizisi gerekli' });
+  const now = new Date().toISOString();
   const tx = db.transaction((recs) => {
-    let n = 0;
+    let added = 0, invalid = 0;
+    const skipped = [];
     for (const r of recs) {
-      if (!r.kunyeNo || !r.urun) continue;
-      upsertStmt.run({
-        kunyeNo: r.kunyeNo, urun: r.urun, tip: r.tip || '',
-        bildirimTarihi: r.bildirimTarihi || '', uretimYeri: r.uretimYeri || '',
-        uretimTarihi: r.uretimTarihi || '', ureticiAdi: r.ureticiAdi || '',
-        miktar: r.miktar || '', fiyat: r.fiyat || '',
-        kaynakDosya: r.kaynakDosya || '', yuklemeZamani: new Date().toISOString()
+      const kunyeNo = str(r && r.kunyeNo);
+      const urun = str(r && r.urun);
+      if (!KUNYE_NO_RE.test(kunyeNo) || !urun) { invalid++; continue; }
+      const info = insertStmt.run({
+        kunyeNo, urun, tip: str(r.tip),
+        bildirimTarihi: str(r.bildirimTarihi), uretimYeri: str(r.uretimYeri),
+        uretimTarihi: str(r.uretimTarihi), ureticiAdi: str(r.ureticiAdi),
+        miktar: str(r.miktar), fiyat: str(r.fiyat),
+        kaynakDosya: str(r.kaynakDosya), yuklemeZamani: now,
       });
-      n++;
+      if (info.changes === 1) added++; else skipped.push(kunyeNo);
     }
-    return n;
+    return { added, invalid, skipped };
   });
-  const n = tx(records);
-  res.json({ inserted: n });
+  const { added, invalid, skipped } = tx(records);
+  res.json({ added, skipped: skipped.length, skippedNos: skipped.slice(0, 50), invalid });
+});
+
+app.put('/api/kunyeler/:kunyeNo', (req, res) => {
+  const body = req.body || {};
+  const vals = {};
+  for (const k of EDITABLE) {
+    if (k in body) {
+      const v = str(body[k]);
+      if (v.length > MAX_FIELD) return res.status(400).json({ error: k + ' cok uzun.' });
+      vals[k] = v;
+    }
+  }
+  if ('urun' in vals && !vals.urun) return res.status(400).json({ error: 'Urun adi bos olamaz.' });
+  const keys = Object.keys(vals);
+  if (keys.length === 0) return res.status(400).json({ error: 'Guncellenecek alan yok.' });
+  // kunyeNo degistirilemez (kimlik); yanlissa sil + yeniden yukle
+  const info = db
+    .prepare('UPDATE kunyeler SET ' + keys.map((k) => k + ' = @' + k).join(', ') + ' WHERE kunyeNo = @kunyeNo')
+    .run({ ...vals, kunyeNo: req.params.kunyeNo });
+  if (info.changes === 0) return res.status(404).json({ error: 'Kunye bulunamadi.' });
+  res.json(db.prepare('SELECT * FROM kunyeler WHERE kunyeNo = ?').get(req.params.kunyeNo));
 });
 
 app.delete('/api/kunyeler/:kunyeNo', (req, res) => {
-  db.prepare('DELETE FROM kunyeler WHERE kunyeNo = ?').run(req.params.kunyeNo);
+  const info = db.prepare('DELETE FROM kunyeler WHERE kunyeNo = ?').run(req.params.kunyeNo);
+  if (info.changes === 0) return res.status(404).json({ error: 'Kunye bulunamadi.' });
   res.json({ ok: true });
 });
 
 app.post('/api/kunyeler/cleanup', (req, res) => {
-  const days = parseInt(req.body.days, 10) || 180;
+  const days = parseInt((req.body || {}).days, 10) || 180;
   const rows = db.prepare('SELECT kunyeNo, bildirimTarihi FROM kunyeler').all();
   const cutoff = Date.now() - days * 86400000;
   const del = db.prepare('DELETE FROM kunyeler WHERE kunyeNo = ?');
