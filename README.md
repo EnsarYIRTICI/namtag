@@ -1,193 +1,87 @@
-# Künye Arşivi — Ubuntu VPS Kurulumu
+# Künye Arşivi v2
 
-Bu, önceki claude.ai sürümüyle aynı arayüze sahip ama tamamen kendi sunucunuzda,
-kendi veritabanıyla (SQLite, tek dosya) çalışan bağımsız bir sürümdür.
-İnternet/Claude bağlantısı gerekmez.
+Hal Kayıt Sistemi künye evraklarını (CSV / HTML / PDF) yükleyip arşivleyen, arayan ve A4 şablonda yazdıran uygulama.
 
-## 1. Sunucuya kopyalayın
+**Yığın:** Next.js 16 + TypeScript + Tailwind CSS 4 (arayüz) · Express 5 + TypeScript (API) · PostgreSQL 17 · MinIO/S3 (orijinal evrak arşivi) · Docker Compose. Nginx compose dışında, host'ta çalışır.
 
-Bu klasörün tamamını (node_modules ve data hariç) VPS'inize yükleyin, örneğin:
+```
+tarayıcı → host nginx ─┬─ /api/ → api  (127.0.0.1:4000) ─┬→ postgres (iç ağ)
+                       └─ /     → web  (127.0.0.1:3000)  └→ minio    (iç ağ)
+```
+
+Yalnızca `web` ve `api` portları ve sadece `127.0.0.1`'e açılır. PostgreSQL ve MinIO'ya dışarıdan erişilemez; orijinal evraklar oturum kontrolünden geçen API üzerinden indirilir.
+
+## Kurulum
 
 ```bash
-scp -r kunye-server kullanici@sunucu_ip:/tmp/
+cp .env.example .env      # CHANGE_ME olanları doldurun, APP_ORIGIN'i kendi adresinize ayarlayın
+docker compose up -d --build
+docker compose logs -f api
 ```
 
-## 2. Node.js kurun (Ubuntu 22.04/24.04)
+Host nginx'e `nginx/kunye.conf` dosyasını ekleyin (alan adını değiştirin), `nginx -t && systemctl reload nginx`, ardından `certbot --nginx -d ...`. HTTPS'siz internete açmayın.
+
+İlk kullanıcı `.env`'deki `ADMIN_USERNAME` / `ADMIN_PASSWORD` ile, hiç kullanıcı yokken ilk açılışta oluşur (sonra `ADMIN_PASSWORD` satırını silin).
+
+## Kullanıcı yönetimi
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs build-essential
-node -v   # v18 veya üzeri olmalı
+docker compose exec api node dist/cli.js user add <kullanici>      # şifre ekranda görünmez
+docker compose exec api node dist/cli.js user passwd <kullanici>   # açık oturumlar kapanır
+docker compose exec api node dist/cli.js user delete <kullanici>
+docker compose exec api node dist/cli.js user list
 ```
 
-(`build-essential` gerekli çünkü `better-sqlite3` küçük bir native modül derliyor.)
+Rol/yetki ayrımı yoktur: giriş yapan herkes yükleyebilir, silebilir, bakım temizliği çalıştırabilir.
 
-## 3. Uygulamayı yerleştirin ve bağımlılıkları kurun
+## Eski sürümden (SQLite) veri aktarma
+
+Eski sunucuda (sqlite3 komutu gerekir):
 
 ```bash
-sudo mkdir -p /opt/kunye-arsivi
-sudo cp -r /tmp/kunye-server/* /opt/kunye-arsivi/
-cd /opt/kunye-arsivi
-sudo npm install --omit=dev
+sqlite3 -json data/kunye.db "SELECT * FROM kunyeler" > kunyeler.json
+sqlite3 -json data/kunye.db "SELECT username, passwordHash, createdAt FROM users" > users.json
 ```
 
-Bir kullanıcı hesabı açıp uygulamayı ona verin (root olarak çalıştırmayın):
+İki dosyayı yeni sunucuya kopyalayıp `api` container'ına verin:
 
 ```bash
-sudo useradd -r -s /bin/false kunye
-sudo chown -R kunye:kunye /opt/kunye-arsivi
+docker compose cp kunyeler.json api:/tmp/ && docker compose cp users.json api:/tmp/
+docker compose exec api node dist/cli.js import-legacy /tmp/kunyeler.json /tmp/users.json
 ```
 
-## 4. Elle test edin
+Eski şifre hash'leri aynı formattadır, kullanıcılar eski şifreleriyle girebilir. Eski künyelerin orijinal dosyası olmadığından listede "İndir" düğmesi görünmez.
+
+## Yedek
 
 ```bash
-cd /opt/kunye-arsivi
-sudo -u kunye PORT=3000 node server.js
+# PostgreSQL
+docker compose exec -T db pg_dump -U kunye kunye | gzip > kunye-db-$(date +%F).sql.gz
+# Orijinal evraklar (MinIO verisi)
+docker run --rm -v kunye-arsivi_miniodata:/data -v "$PWD":/b alpine tar czf /b/kunye-evrak-$(date +%F).tgz -C /data .
 ```
 
-Başka bir terminalden: `curl http://localhost:3000/api/health` → `{"ok":true}` dönmeli.
-Sorun yoksa Ctrl+C ile durdurun ve systemd servisine geçin.
+Günlük yedek için bunları host cron'una ekleyebilirsiniz.
 
-## 5. Kalıcı servis olarak çalıştırın (systemd)
+## MinIO hakkında (önemli)
+
+Resmi MinIO topluluk sürümü 2025-2026'da bakım dışı bırakıldı: hazır Docker imajı yayınlanmıyor, depo arşivlendi, güvenlik yaması garantisi yok. Varsayılan imaj, yayınlanmış son resmi sürümlerden biridir ve donmuştur. Riski azaltan şeyler: portu dışarı açılmaz, tarayıcı ona doğrudan erişmez.
+
+API sadece S3 protokolünü konuşur (`S3_*` ayarları). Bakımı süren başka bir S3 uyumlu depoya (Garage, SeaweedFS, RustFS vb.) geçmek için `.env`'de `MINIO_IMAGE`'i ve gerekirse compose'daki `minio` servisini değiştirmeniz yeterlidir; kod değişmez. Depoyu değiştirirken mevcut nesneleri (`evraklar/<id>`) yeni depoya kopyalamayı unutmayın.
+
+## Geliştirme
 
 ```bash
-sudo cp /opt/kunye-arsivi/kunye-arsivi.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now kunye-arsivi
-sudo systemctl status kunye-arsivi
+# PostgreSQL ve S3 uyumlu depo gerekir (compose'dan sadece db ve minio'yu açabilirsiniz)
+cd api && npm i && DATABASE_URL=... S3_ENDPOINT=... S3_ACCESS_KEY=... S3_SECRET_KEY=... APP_ORIGIN=http://localhost:3000 npm run dev
+cd web && npm i && npm run dev        # /api istekleri localhost:4000'e yönlenir
+npm test                              # hem api/ hem web/ içinde
 ```
 
-Loglar: `sudo journalctl -u kunye-arsivi -f`
+## Notlar
 
-Uygulama artık sunucu her yeniden başladığında otomatik ayağa kalkar.
-
-## 6. Dışarıya açma (Nginx + HTTPS — internete açacaksanız zorunlu sayın)
-
-Doğrudan 3000 portunu dışarı açmak yerine Nginx ile önden geçirin:
-
-```bash
-sudo apt install -y nginx certbot python3-certbot-nginx
-sudo cp /opt/kunye-arsivi/nginx-kunye-arsivi.conf /etc/nginx/sites-available/kunye-arsivi
-# dosyadaki "kunye.alanadiniz.com" kısmını kendi (alt)alan adınızla değiştirin
-sudo ln -s /etc/nginx/sites-available/kunye-arsivi /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d kunye.alanadiniz.com
-```
-
-Bir alan adınız yoksa VPS'in IP adresi + `:3000` üzerinden de erişebilirsiniz, ancak bu **HTTPS'siz**
-olduğu için giriş şifreniz ağda açık gider. Sadece güvendiğiniz bir ağdan (ör. VPN) kullanın.
-
-## 7. Kimlik doğrulama (giriş sistemi)
-
-Uygulama artık **giriş yapmadan hiçbir şey göstermez** (arayüz dosyaları dahil). Hiç kullanıcı
-oluşturmadıysanız kimse giremez; bu bilinçli bir tercih (güvenli varsayılan).
-
-**İlk kullanıcıyı oluşturun** (şifre en az 10 karakter, ekranda görünmez):
-
-```bash
-cd /opt/kunye-arsivi
-sudo -u kunye KUNYE_DATA_DIR=/opt/kunye-arsivi/data node manage-users.js add manav
-```
-
-Diğer komutlar:
-
-```bash
-sudo -u kunye KUNYE_DATA_DIR=/opt/kunye-arsivi/data node manage-users.js list
-sudo -u kunye KUNYE_DATA_DIR=/opt/kunye-arsivi/data node manage-users.js passwd manav   # şifre değiştir, açık oturumlar kapanır
-sudo -u kunye KUNYE_DATA_DIR=/opt/kunye-arsivi/data node manage-users.js delete manav
-```
-
-Tarayıcıdan `/login` sayfasına gidin; sağ üstteki **Çıkış** ile oturumu kapatın.
-Kullanıcı ekleme/silme sunucuda komut satırından yapılır, web arayüzünden yapılamaz (bilerek).
-
-### ÖNEMLİ: HTTPS kullanın
-
-Giriş şifresi istekle birlikte gider. Düz HTTP üzerinden (ör. `http://IP:3000`) internete açarsanız
-şifre ağda açık taşınır. Dışarıya açacaksanız **6. adımdaki Nginx + HTTPS** kurulumunu yapın, sonra
-`kunye-arsivi.service` içinde şunları açın ve servisi yeniden başlatın:
-
-```
-Environment=KUNYE_TRUST_PROXY=1
-Environment=HOST=127.0.0.1
-```
-
-`HOST=127.0.0.1` uygulamayı sadece Nginx'in erişeceği şekilde kapatır (3000 portu dışarıdan görünmez);
-`KUNYE_TRUST_PROXY=1` gerçek istemci IP'sinin (deneme sınırı için) ve HTTPS bilgisinin (`Secure` çerez)
-Nginx'ten okunmasını sağlar. Bunu Nginx **olmadan** açmayın.
-
-### Neler var / neler yok
-
-- Şifreler `scrypt` ile hash'lenir; oturum belirteçleri veritabanında yalnızca SHA-256 özeti olarak tutulur.
-- Çerez: `HttpOnly`, `SameSite=Strict`, HTTPS'te `Secure`. Bosta 12 saat, en fazla 7 gün geçerli.
-- Hatalı girişte hız sınırı: aynı IP'den 15 dakikada 8 hata → 15 dakika kilit. Sayaç bellekte tutulur, servis yeniden başlayınca sıfırlanır.
-- Rol/yetki ayrımı **yok**: giriş yapan herkes künyeleri yükleyebilir, silebilir ve "bakım" temizliğini çalıştırabilir.
-- İki adımlı doğrulama ve "şifremi unuttum" akışı yok; şifre sıfırlama sunucudan `passwd` ile yapılır.
-- `data/kunye.db` artık kullanıcı ve oturum tablolarını da içerir, yedeklerinizi buna göre koruyun.
-
-## Veriler nerede tutuluyor, yedek nasıl alınır?
-
-Tüm künye kayıtları tek bir dosyada: `/opt/kunye-arsivi/data/kunye.db` (SQLite).
-Yedek almak için bu dosyayı kopyalamanız yeterli:
-
-```bash
-sudo cp /opt/kunye-arsivi/data/kunye.db ~/kunye-yedek-$(date +%F).db
-```
-
-Otomatik günlük yedek için bir cron satırı ekleyebilirsiniz:
-
-```bash
-(crontab -l 2>/dev/null; echo "0 3 * * * cp /opt/kunye-arsivi/data/kunye.db /opt/kunye-arsivi/data/backup-\$(date +\%F).db") | crontab -
-```
-
-## Güncelleme
-
-Yeni bir sürüm geldiğinde `server.js` ve `public/` klasörünü değiştirip servisi
-yeniden başlatmanız yeterli — `data/kunye.db` dokunulmadığı sürece kayıtlarınız kalır:
-
-```bash
-sudo systemctl restart kunye-arsivi
-```
-
-## Görünümü değiştirmek (Tailwind CSS)
-
-Arayüz Tailwind CSS ile tasarlandı; hazır, derlenmiş `public/vendor/tailwind.css`
-dosyası geliyor, VPS'te Tailwind kurmanıza gerek yok. Renk/boşluk gibi şeyleri
-değiştirmek isterseniz kaynak dosyalar `tailwind-build/` klasöründe:
-
-```bash
-cd kunye-server/tailwind-build
-npm install                      # sadece bir kere, Tailwind derleyicisini kurar
-# input.css içindeki .panel, .rcard, .printbtn gibi sınıfları düzenleyin
-npx tailwindcss -i ./input.css -o ../public/vendor/tailwind.css --minify
-sudo systemctl restart kunye-arsivi
-```
-
-Renk paleti `tailwind-build/tailwind.config.js` içindeki `clay` (vurgu rengi,
-turuncu-kahve) ve `cream` (arka plan) tonlarından geliyor — kurum renklerinize
-göre buradan değiştirebilirsiniz.
-
-## Yazdırma (A4 künye şablonu)
-
-Çıktı, Hal Kayıt Sistemi PDF'i (Report0) ile aynı düzendedir: A4 sayfada 2x2 kart, kart başına
-91 x 122 mm. Sayfa başına 4 künye basılır. Kenar boşlukları CSS ile (`@page { margin: 0 }`)
-ayarlıdır. Tarayıcının yazdır penceresinde **Ölçek: %100 / Varsayılan** seçili olmalı,
-"Sayfaya sığdır" seçmeyin. Kart ölçüleri `tailwind-build/input.css` içindeki `.print-page` ve
-`.label-box` kurallarındadır; değiştirirseniz Tailwind'i yeniden derleyin (aşağıya bakın).
-
-## Klasör yapısı
-
-```
-kunye-server/
-├── server.js                  # Express + SQLite API sunucusu
-├── auth.js                    # kimlik doğrulama (şifre hash, oturum, hız sınırı)
-├── manage-users.js            # kullanıcı ekle/sil/şifre değiştir (komut satırı)
-├── package.json
-├── kunye-arsivi.service       # systemd servis şablonu
-├── nginx-kunye-arsivi.conf    # Nginx reverse proxy şablonu
-├── public/
-│   ├── index.html             # arayüz (yükleme, arama, A4 yazdırma)
-│   ├── login.html             # giriş sayfası
-│   └── vendor/                # PDF okuyucu, QR üretici, Tailwind CSS (yerel, CDN'e bağımlı değil)
-├── tailwind-build/            # Tailwind kaynak dosyaları (sadece stil değiştirmek isterseniz)
-└── data/                      # (otomatik oluşur) kunye.db burada tutulur
-```
+- Ayrıştırma tarayıcıda yapılır (pdf.js); sunucuya ayrıştırılmış kayıtlar ve orijinal dosya gönderilir. Aynı künye no bir kez saklanır; hiç yeni künye getirmeyen evrak "daha önce yüklenmiş" sayılıp reddedilir.
+- Yazdırma: A4'te 2x2 kart, kart başına 91 x 122 mm. Yazdır penceresinde ölçek **%100** olmalı. Ölçüler `web/src/app/globals.css` içindeki `.print-page` / `.label-box` kurallarındadır.
+- Şifreler scrypt ile hash'lenir, oturum belirteçleri veritabanında yalnızca SHA-256 özeti olarak tutulur. Çerez: HttpOnly, SameSite=Strict, HTTPS'te Secure. Hatalı girişte hız sınırı (IP başına 15 dk'da 8) bellekte tutulur, servis yeniden başlayınca sıfırlanır.
+- Sayfa kabuğu herkese açıktır (veri içermez); veri ve dosyalar oturum olmadan API'den dönmez.
+- Renkler `web/src/app/globals.css` başındaki `@theme` bloğundadır.

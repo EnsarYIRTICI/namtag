@@ -1,0 +1,91 @@
+name: kunye-arsivi
+
+services:
+  web:
+    build:
+      context: ./web
+      args:
+        API_INTERNAL_URL: http://api:4000
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # Sadece loopback: host'taki nginx erişir, dışarıdan görünmez
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    networks: [internal]
+
+  api:
+    build:
+      context: ./api
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-kunye}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env içinde tanımlı olmalı}@db:5432/${POSTGRES_DB:-kunye}
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: ${S3_BUCKET:-kunye-evrak}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:?MINIO_ROOT_USER .env içinde tanımlı olmalı}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD .env içinde tanımlı olmalı}
+      S3_FORCE_PATH_STYLE: "true"
+      APP_ORIGIN: ${APP_ORIGIN:?APP_ORIGIN .env içinde tanımlı olmalı (örn. https://kunye.ornek.com)}
+      TRUST_PROXY: "1"
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SESSION_IDLE_HOURS: ${SESSION_IDLE_HOURS:-12}
+      SESSION_MAX_DAYS: ${SESSION_MAX_DAYS:-7}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+    ports:
+      - "127.0.0.1:${API_PORT:-4000}:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks: [internal]
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kunye}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env içinde tanımlı olmalı}
+      POSTGRES_DB: ${POSTGRES_DB:-kunye}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kunye} -d ${POSTGRES_DB:-kunye}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [internal]   # port yayınlanmaz
+
+  minio:
+    # DİKKAT: resmi MinIO topluluk sürümü artık bakım görmüyor (güvenlik yaması yok). Bkz. README.
+    # İmaj .env'deki MINIO_IMAGE ile değiştirilebilir. Port yayınlanmaz, sadece api erişir.
+    image: ${MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-06-13T11-33-47Z}
+    restart: unless-stopped
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER .env içinde tanımlı olmalı}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD .env içinde tanımlı olmalı}
+    volumes:
+      - miniodata:/data
+    networks: [internal]
+
+networks:
+  internal:
+
+volumes:
+  pgdata:
+  miniodata:

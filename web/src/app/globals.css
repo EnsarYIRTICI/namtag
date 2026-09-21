@@ -1,0 +1,262 @@
+@import "tailwindcss";
+
+/* Kurum renkleri: clay = vurgu (turuncu-kahve), cream = arka plan. Değiştirmek için burayı düzenleyin. */
+@theme {
+  --color-cream-50: #f6f5f2;
+  --color-cream-100: #efece6;
+  --color-clay-400: #c98f52;
+  --color-clay-500: #a8763e;
+  --color-clay-600: #8a5f30;
+}
+
+@layer base {
+  body {
+    @apply m-0 bg-cream-50 dark:bg-stone-950 text-stone-800 dark:text-stone-100 min-h-screen;
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+  }
+}
+
+@layer components {
+  header {
+    @apply px-6 pt-5 pb-3.5 border-b border-stone-200 dark:border-stone-700;
+  }
+  header h1 {
+    @apply m-0 mb-1 text-xl font-semibold;
+  }
+  header p {
+    @apply m-0 text-stone-500 dark:text-stone-400 text-sm;
+  }
+
+  .wrap {
+    @apply max-w-[1100px] mx-auto p-5;
+  }
+  .layout-grid {
+    @apply grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-5;
+  }
+
+  .panel {
+    @apply bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-4 mb-[18px];
+  }
+  .panel h2 {
+    @apply m-0 mb-2.5 text-[15px] font-semibold flex items-center gap-2;
+  }
+
+  .badge {
+    @apply inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-clay-500 text-white text-xs font-semibold;
+  }
+
+  .drop {
+    @apply border-2 border-dashed border-stone-200 dark:border-stone-700 rounded-[10px] p-[22px] text-center text-stone-500 dark:text-stone-400 text-[13px] cursor-pointer transition-colors duration-150;
+  }
+  .drop.drag {
+    @apply border-clay-500 bg-clay-500/10;
+  }
+  .drop b {
+    @apply text-stone-800 dark:text-stone-100;
+  }
+
+  .status {
+    @apply mt-2.5 text-[12.5px] min-h-[18px] text-stone-500 dark:text-stone-400 whitespace-pre-line;
+  }
+  .status.ok {
+    @apply text-emerald-600 dark:text-emerald-400;
+  }
+  .status.err {
+    @apply text-red-600 dark:text-red-400;
+  }
+
+  .fmts {
+    @apply flex gap-1.5 mt-2.5 flex-wrap;
+  }
+  .fmt-chip {
+    @apply text-[11px] px-2 py-[3px] rounded-full border border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400;
+  }
+
+  .search-box {
+    @apply flex gap-2 mb-3;
+  }
+  .search-box input {
+    @apply flex-1 px-3 py-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-cream-50 dark:bg-stone-800 text-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-clay-500 focus:ring-offset-1 dark:focus:ring-offset-stone-900;
+  }
+
+  .results {
+    @apply flex flex-col gap-2 max-h-[520px] overflow-y-auto;
+  }
+  .rcard {
+    @apply border border-stone-200 dark:border-stone-700 rounded-[9px] px-3 py-2.5 flex justify-between items-center gap-2.5 text-[13px];
+  }
+  .rcard .rinfo b {
+    @apply text-[14.5px];
+  }
+  .rcard .rinfo .sub {
+    @apply text-stone-500 dark:text-stone-400 text-xs mt-0.5 block;
+  }
+  .rcard button {
+    @apply flex-shrink-0 border-0 bg-clay-500 text-white px-3.5 py-[7px] rounded-md text-[13px] cursor-pointer font-semibold transition-colors hover:bg-clay-600 disabled:bg-stone-200 disabled:text-stone-400 dark:disabled:bg-stone-700 dark:disabled:text-stone-500 disabled:cursor-default;
+  }
+
+  .evrak-list {
+    @apply max-h-[280px] overflow-y-auto flex flex-col gap-1.5;
+  }
+  .evrak-item {
+    @apply flex justify-between items-center gap-2.5 border border-stone-300 dark:border-stone-700 rounded-[9px] px-3 py-2 text-[13px];
+  }
+  .evrak-item .evrak-info {
+    @apply min-w-0;
+  }
+  .evrak-item .evrak-info b {
+    @apply block break-all;
+  }
+  .evrak-item .evrak-info span {
+    @apply text-xs opacity-65;
+  }
+  .evrak-item .evrak-actions {
+    @apply flex gap-1.5 flex-shrink-0;
+  }
+  .evrak-item .evrak-actions button,
+  .evrak-item .evrak-actions a {
+    @apply bg-transparent border rounded-md px-[11px] py-[5px] text-[12.5px] cursor-pointer font-semibold no-underline;
+  }
+  .evrak-item .evrak-actions .del {
+    @apply text-red-600 border-red-300 hover:bg-red-600/10;
+  }
+  .evrak-item .evrak-actions .dl {
+    @apply text-clay-500 border-clay-400 hover:bg-clay-500/10;
+  }
+
+  .empty {
+    @apply text-stone-500 dark:text-stone-400 text-[13px] py-3.5 px-0.5;
+  }
+
+  .sel-list {
+    @apply flex flex-col gap-1.5 mb-3;
+  }
+  .sel-item {
+    @apply flex justify-between items-center border border-stone-200 dark:border-stone-700 rounded-lg px-2.5 py-[7px] text-[13px];
+  }
+  .sel-item .x {
+    @apply cursor-pointer text-red-600 dark:text-red-400 font-bold px-1.5 text-[15px] bg-transparent border-0;
+  }
+
+  .printbtn {
+    @apply w-full py-3 border-0 rounded-lg bg-emerald-600 text-white text-[14.5px] font-bold cursor-pointer mt-1 transition-colors hover:bg-emerald-700 disabled:bg-stone-200 disabled:text-stone-400 dark:disabled:bg-stone-700 dark:disabled:text-stone-500 disabled:cursor-default;
+  }
+  .clearbtn {
+    @apply w-full py-2 border border-stone-200 dark:border-stone-700 rounded-lg bg-transparent text-stone-500 dark:text-stone-400 text-xs cursor-pointer mt-1.5;
+  }
+  .maint {
+    @apply mt-1.5 text-[11.5px] text-stone-500 dark:text-stone-400 text-right cursor-pointer underline block bg-transparent border-0 w-full;
+  }
+}
+
+/* Yazdırma şablonu: A4, sayfada 2x2 kart. Ölçüler orijinal Report0.pdf'ten (Hal Kayıt Sistemi çıktısı):
+   kart 91 x 122 mm, kenar boşlukları 10.5 mm. Sabit fiziksel yerleşim olduğu için düz CSS (Tailwind değil). */
+#print-area {
+  display: none;
+}
+
+.print-page {
+  box-sizing: border-box;
+  width: 210mm;
+  height: 296mm; /* 297 değil: yuvarlama taşması boş sayfa üretmesin */
+  padding-top: 15.5mm;
+  display: grid;
+  grid-template-columns: 91mm 91mm;
+  grid-auto-rows: 122mm;
+  column-gap: 7mm;
+  row-gap: 5.7mm;
+  justify-content: center;
+  align-content: start;
+  overflow: hidden;
+  break-after: page;
+  page-break-after: always;
+}
+.print-page:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+.label-box {
+  box-sizing: border-box;
+  border: 1.2px dashed #444;
+  padding: 6pt 7pt 0;
+  background: #fff;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 9pt;
+  line-height: 10.3pt;
+  overflow: hidden;
+  break-inside: avoid;
+}
+.label-box .urun {
+  text-align: center;
+  font-weight: 700;
+  font-size: 9.75pt;
+  line-height: 10.9pt;
+}
+.label-box .tip {
+  text-align: center;
+  margin-top: 5.5pt;
+}
+.label-box .qr {
+  margin-top: 8.1pt;
+  height: 42pt;
+}
+.label-box .qr > div {
+  margin: 0 auto;
+  width: 56px;
+  height: 56px;
+}
+.label-box .qr svg {
+  display: block;
+  margin: 0 auto;
+}
+.label-box .kno {
+  text-align: center;
+  margin-top: 5pt;
+}
+.label-box .rows {
+  margin-top: 31.8pt;
+}
+.label-box .row {
+  display: grid;
+  grid-template-columns: 95.6pt 1fr;
+  margin-bottom: 6.1pt;
+}
+.label-box .row span:last-child {
+  overflow-wrap: anywhere;
+}
+.label-box .row.before-qty {
+  margin-bottom: 28.6pt;
+}
+.label-box .row.before-foot {
+  margin-bottom: 27pt;
+}
+.label-box .foot {
+  font-size: 9.75pt;
+  line-height: 11.2pt;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0; /* 0: tarayıcının tarih/URL üst-alt bilgisi de basılmaz */
+  }
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  /* visibility:hidden yerine display:none: gizli arayüz yer kaplayıp boş 2. sayfa üretmesin */
+  body > *:not(#print-area) {
+    display: none !important;
+  }
+  #print-area {
+    display: block;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
