@@ -22,7 +22,15 @@ function WbrText({ text }: { text: string }) {
   );
 }
 
-function Row({ label, value, cls }: { label: string; value: string; cls?: string }) {
+function Row({
+  label,
+  value,
+  cls,
+}: {
+  label: string;
+  value: string;
+  cls?: string;
+}) {
   return (
     <div className={"row" + (cls ? " " + cls : "")}>
       <span>{label} :</span>
@@ -51,7 +59,13 @@ export default function PrintArea({ selected }: { selected: Kunye[] }) {
               <div className="tip">{r.tip || ""}</div>
               <div className="qr">
                 <div>
-                  <QRCodeSVG value={r.kunyeNo} size={56} level="M" />
+                  <QRCodeSVG
+                    value={r.kunyeNo}
+                    size={56}
+                    level="L"
+                    minVersion={5}
+                    boostLevel={false}
+                  />
                 </div>
               </div>
               <div className="kno">{r.kunyeNo}</div>
@@ -59,7 +73,11 @@ export default function PrintArea({ selected }: { selected: Kunye[] }) {
                 <Row label="Bildirim Tarihi" value={r.bildirimTarihi} />
                 <Row label="Üretim Yeri" value={r.uretimYeri} />
                 <Row label="Üretim Tarihi" value={r.uretimTarihi} />
-                <Row label="Üreticisinin Adı" value={r.ureticiAdi} cls="before-qty" />
+                <Row
+                  label="Üreticisinin Adı"
+                  value={r.ureticiAdi}
+                  cls="before-qty"
+                />
                 <Row label="Miktar" value={r.miktar} />
                 <Row label="Alış Fiyatı" value={r.fiyat} cls="before-foot" />
               </div>
