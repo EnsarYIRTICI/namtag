@@ -37,3 +37,14 @@ export interface UploadResult {
   invalid: number;
   duplicate: boolean;
 }
+
+/** Önceden hazırlanıp kaydedilmiş yazdırma listesi */
+export interface Liste {
+  id: string;
+  ad: string;
+  olusturan: string;
+  olusturma: string;
+  guncelleme: string;
+  sonYazdirma: string | null;
+  kunyeNos: string[];
+}

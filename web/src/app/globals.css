@@ -31,7 +31,8 @@
     @apply max-w-[1100px] mx-auto p-5;
   }
   .layout-grid {
-    @apply grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-5;
+    /* sadece sütun boşluğu: telefonda paneller zaten alt boşluklu, satır boşluğu çift aralık yapar */
+    @apply grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-x-5;
   }
 
   .panel {
@@ -76,7 +77,7 @@
     @apply flex gap-2 mb-3;
   }
   .search-box input {
-    @apply flex-1 px-3 py-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-cream-50 dark:bg-stone-800 text-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-clay-500 focus:ring-offset-1 dark:focus:ring-offset-stone-900;
+    @apply flex-1 px-3 py-2.5 text-base md:text-sm rounded-lg border border-stone-200 dark:border-stone-700 bg-cream-50 dark:bg-stone-800 text-stone-800 dark:text-stone-100 text-sm focus:outline-none focus:ring-2 focus:ring-clay-500 focus:ring-offset-1 dark:focus:ring-offset-stone-900;
   }
 
   .results {
@@ -133,6 +134,9 @@
   }
   .sel-item {
     @apply flex justify-between items-center border border-stone-200 dark:border-stone-700 rounded-lg px-2.5 py-[7px] text-[13px];
+  }
+  .sel-item small {
+    @apply block text-[11.5px] text-stone-500 dark:text-stone-400;
   }
   .sel-item .x {
     @apply cursor-pointer text-red-600 dark:text-red-400 font-bold px-1.5 text-[15px] bg-transparent border-0;
@@ -303,4 +307,81 @@
 
 @media (prefers-reduced-motion: reduce) {
   .skel { animation: none; }
+}
+
+/* Kayıtlı listeler */
+@layer components {
+  .aktif-liste {
+    @apply -mt-1 mb-2.5 text-[12.5px] text-stone-500 dark:text-stone-400;
+  }
+  .aktif-liste b {
+    @apply text-stone-800 dark:text-stone-100;
+  }
+  .aktif-liste .kaydedilmedi {
+    @apply text-clay-600 dark:text-clay-400;
+  }
+  .save-row {
+    @apply flex gap-2 mb-1;
+  }
+  .save-row input {
+    @apply flex-1 min-w-0 px-3 py-2 text-base md:text-[13px] rounded-lg border border-stone-200 dark:border-stone-700 bg-cream-50 dark:bg-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-clay-500;
+  }
+  .savebtn {
+    @apply flex-shrink-0 px-3.5 py-2 rounded-lg border border-clay-500 bg-clay-500/10 text-clay-600 dark:text-clay-400 text-[13px] font-semibold cursor-pointer hover:bg-clay-500/20 disabled:cursor-default disabled:border-stone-200 dark:disabled:border-stone-700 disabled:bg-transparent disabled:text-stone-400 dark:disabled:text-stone-500;
+  }
+  .save-row + .status {
+    @apply mt-1 mb-2;
+  }
+
+  .liste-list {
+    @apply flex flex-col gap-1.5 max-h-[360px] overflow-y-auto;
+  }
+  .liste-item {
+    @apply flex justify-between items-center gap-2.5 border border-stone-200 dark:border-stone-700 rounded-[9px] px-3 py-2 text-[13px];
+  }
+  .liste-item.aktif {
+    @apply border-clay-500 bg-clay-500/5;
+  }
+  .liste-info {
+    @apply min-w-0;
+  }
+  .liste-info b {
+    @apply block break-words;
+  }
+  .liste-info span {
+    @apply block text-xs text-stone-500 dark:text-stone-400;
+  }
+  .liste-info .yazdirildi {
+    @apply text-emerald-700 dark:text-emerald-400;
+  }
+  .liste-actions {
+    @apply flex gap-1.5 flex-shrink-0 items-center;
+  }
+  .liste-actions button {
+    @apply bg-transparent border rounded-md px-3 py-1.5 text-[12.5px] cursor-pointer font-semibold;
+  }
+  .liste-actions .ac {
+    @apply text-clay-600 dark:text-clay-400 border-clay-400 hover:bg-clay-500/10 disabled:opacity-40 disabled:cursor-default;
+  }
+  .liste-actions .sil {
+    @apply text-red-600 dark:text-red-400 border-red-300 dark:border-red-800 hover:bg-red-600/10;
+  }
+  .liste-actions .acik {
+    @apply text-xs font-semibold text-clay-600 dark:text-clay-400 px-1;
+  }
+
+  /* Telefonda alt çubuk */
+  .mobile-bar {
+    @apply md:hidden fixed left-0 right-0 bottom-0 z-20 flex items-center justify-between gap-3 px-4 pt-2.5 bg-white/95 dark:bg-stone-900/95 border-t border-stone-200 dark:border-stone-700 text-sm backdrop-blur;
+    padding-bottom: calc(0.625rem + env(safe-area-inset-bottom, 0px));
+  }
+  .mobile-bar button {
+    @apply border-0 rounded-lg bg-clay-500 text-white px-4 py-2 text-sm font-semibold cursor-pointer;
+  }
+}
+@media (max-width: 767px) {
+  /* alt çubuk son paneli örtmesin */
+  #app-root {
+    padding-bottom: 72px;
+  }
 }

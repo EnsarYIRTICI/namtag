@@ -4,6 +4,7 @@ import { COOKIE_NAME, parseCookies } from "./auth";
 import type { Deps } from "./deps";
 import { evraklarRoutes } from "./routes/evraklar";
 import { kunyelerRoutes } from "./routes/kunyeler";
+import { listelerRoutes } from "./routes/listeler";
 import { publicRoutes } from "./routes/session";
 
 export function buildApp(d: Deps) {
@@ -60,6 +61,7 @@ export function buildApp(d: Deps) {
   api.use(express.json({ limit: "1mb" }));
   api.use(kunyelerRoutes(d));
   api.use(evraklarRoutes(d));
+  api.use(listelerRoutes(d));
   api.use((_req, res) => res.status(404).json({ error: "Bulunamadı." }));
 
   app.use("/api", api);

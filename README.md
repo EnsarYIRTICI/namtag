@@ -34,6 +34,10 @@ docker compose exec api node dist/cli.js user list
 
 Rol/yetki ayrımı yoktur: giriş yapan herkes yükleyebilir, silebilir, bakım temizliği çalıştırabilir.
 
+## Kayıtlı listeler
+
+Seçili künyeler "Listeyi kaydet" ile adlandırılıp sunucuya kaydedilir; aynı hesapla başka bir cihazdan (örn. telefondan hazırlayıp bilgisayardan) "Kayıtlı Listeler" panelinden açılıp yazdırılabilir. Açık liste değiştirilmeden yazdırılırsa "Yazdırıldı" olarak işaretlenir. Bir künye arşivden silinirse (evrak silme ya da 6 ay temizliği) listelerden de düşer. Telefonda panel sırası aramayı öne alacak şekilde değişir.
+
 ## Eski sürümden (SQLite) veri aktarma
 
 Eski sunucuda (sqlite3 komutu gerekir):

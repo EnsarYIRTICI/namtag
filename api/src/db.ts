@@ -59,6 +59,30 @@ const MIGRATIONS: { id: string; sql: string }[] = [
       CREATE INDEX idx_kunyeler_bildirim_ts ON kunyeler(bildirim_ts);
     `,
   },
+  {
+    id: "002_listeler",
+    sql: `
+      -- Önceden hazırlanıp kaydedilen yazdırma listeleri (örn. telefondan hazırlanıp bilgisayardan yazdırılır)
+      CREATE TABLE listeler (
+        id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        ad           TEXT NOT NULL,
+        olusturan    TEXT,
+        olusturma    TIMESTAMPTZ NOT NULL DEFAULT now(),
+        guncelleme   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        son_yazdirma TIMESTAMPTZ
+      );
+      CREATE INDEX idx_listeler_guncelleme ON listeler(guncelleme DESC);
+
+      -- Künye arşivden silinirse (evrak silme / 6 ay temizliği) listeden de düşer.
+      CREATE TABLE liste_kunyeler (
+        liste_id UUID NOT NULL REFERENCES listeler(id) ON DELETE CASCADE,
+        kunye_no TEXT NOT NULL REFERENCES kunyeler(kunye_no) ON DELETE CASCADE,
+        sira     INTEGER NOT NULL,
+        PRIMARY KEY (liste_id, kunye_no)
+      );
+      CREATE INDEX idx_liste_kunyeler_kunye ON liste_kunyeler(kunye_no);
+    `,
+  },
 ];
 
 export async function migrate(pool: Pool): Promise<void> {
