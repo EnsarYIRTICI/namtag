@@ -1,6 +1,6 @@
 "use client";
 import { Fragment } from "react";
-import { QRCodeSVG } from "qrcode.react";
+import KunyeQR from "./KunyeQR";
 import type { Kunye } from "@/lib/types";
 
 // "ANTALYA/KUMLUCA" gibi değerlerde '/' sonrasında satır kırılabilsin
@@ -59,13 +59,7 @@ export default function PrintArea({ selected }: { selected: Kunye[] }) {
               <div className="tip">{r.tip || ""}</div>
               <div className="qr">
                 <div>
-                  <QRCodeSVG
-                    value={r.kunyeNo}
-                    size={56}
-                    level="L"
-                    minVersion={5}
-                    boostLevel={false}
-                  />
+                  <KunyeQR value={r.kunyeNo} size={56} />
                 </div>
               </div>
               <div className="kno">{r.kunyeNo}</div>
