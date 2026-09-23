@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import multer from "multer";
 import { COOKIE_NAME, parseCookies } from "./auth";
 import type { Deps } from "./deps";
+import { eksiklerRoutes } from "./routes/eksikler";
 import { evraklarRoutes } from "./routes/evraklar";
 import { kunyelerRoutes } from "./routes/kunyeler";
 import { listelerRoutes } from "./routes/listeler";
@@ -62,6 +63,7 @@ export function buildApp(d: Deps) {
   api.use(kunyelerRoutes(d));
   api.use(evraklarRoutes(d));
   api.use(listelerRoutes(d));
+  api.use(eksiklerRoutes(d));
   api.use((_req, res) => res.status(404).json({ error: "Bulunamadı." }));
 
   app.use("/api", api);

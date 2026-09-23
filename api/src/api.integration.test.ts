@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrate } from "./db";
-import { evrakForm, type Harness, kunye, ORIGIN, startHarness } from "./test/harness";
+import { evrakForm, halTarihi, type Harness, isoGun, kunye, ORIGIN, startHarness } from "./test/harness";
 
 const DB = process.env.TEST_DATABASE_URL;
 
@@ -157,6 +157,88 @@ describe.skipIf(!DB)("API + PostgreSQL", () => {
     });
   });
 
+  describe("tazelik işaretleri", () => {
+    it("aynı ürünün en yenisi işaretlenir, eskisinde daha yeni tarih ve yaş gelir", async () => {
+      const yeni = kunye("KARPUZ", halTarihi(1));
+      const eski = kunye("KARPUZ", halTarihi(40));
+      const baska = kunye("KARPUZ DİLİM", halTarihi(60)); // farklı ürün adı: kendi grubunun en yenisi
+      await upload("tazelik.pdf", [yeni, eski, baska]);
+
+      const r = await h.call("GET", "/kunyeler?q=karpuz");
+      const by = Object.fromEntries(r.data.items.map((k: any) => [k.kunyeNo, k]));
+      expect(by[yeni.kunyeNo]).toMatchObject({ enYeni: true, dahaYeni: null, yasGun: 1 });
+      expect(by[eski.kunyeNo]).toMatchObject({ enYeni: false, dahaYeni: yeni.bildirimTarihi, yasGun: 40 });
+      expect(by[baska.kunyeNo]).toMatchObject({ enYeni: true, yasGun: 60 });
+
+      const b = await h.call("POST", "/kunyeler/bul", { kunyeNos: [eski.kunyeNo] });
+      expect(b.data[0]).toMatchObject({ enYeni: false, dahaYeni: yeni.bildirimTarihi });
+    });
+
+    it("tarihi okunamayan künye en yeni sayılmaz, yaşı null", async () => {
+      const k = kunye("TARİHSİZ ÜRÜN", "");
+      await upload("tarihsiz.pdf", [k]);
+      const r = await h.call("GET", "/kunyeler?q=tarihsiz");
+      expect(r.data.items[0]).toMatchObject({ enYeni: false, yasGun: null });
+    });
+  });
+
+  describe("bekleyen ürünler", () => {
+    it("sadece bekleyen ürünle liste kaydedilir; sonradan gelen künyeler aday olur, eskiler olmaz", async () => {
+      const oncedenVar = kunye("PANCAR", halTarihi(2));
+      await upload("pancar-eski.pdf", [oncedenVar]);
+
+      const c = await h.call("POST", "/listeler", {
+        ad: "Manavda not",
+        kunyeNos: [],
+        bekleyenler: [{ urun: "pancar", aciklama: "rafta etiketi yok" }, { urun: "şalgam" }, { urun: "turp" }],
+      });
+      expect(c.status).toBe(201);
+      expect(c.data.kunyeNos).toEqual([]);
+      expect(c.data.bekleyenler.map((b: any) => [b.urun, b.adaylar.length])).toEqual([
+        ["pancar", 0], // önceden arşivde olan önerilmez
+        ["şalgam", 0],
+        ["turp", 0],
+      ]);
+
+      await new Promise((r) => setTimeout(r, 20)); // yükleme zamanı kesin sonra olsun
+      const s1 = kunye("ŞALGAM", halTarihi(0, 6));
+      const t1 = kunye("TURP BEYAZ", halTarihi(0, 6));
+      const t2 = kunye("TURP KIRMIZI", halTarihi(0, 5));
+      const p2 = kunye("PANCAR", halTarihi(0, 6));
+      await upload("sabah.pdf", [s1, t1, t2, p2]);
+
+      const l = (await h.call("GET", "/listeler")).data.find((x: any) => x.id === c.data.id);
+      const ad = Object.fromEntries(l.bekleyenler.map((b: any) => [b.urun, b.adaylar.map((a: any) => a.kunyeNo)]));
+      expect(ad["pancar"]).toEqual([p2.kunyeNo]);
+      expect(ad["şalgam"]).toEqual([s1.kunyeNo]); // "şalgam" -> "ŞALGAM"
+      expect(ad["turp"]).toEqual([t1.kunyeNo, t2.kunyeNo]); // iki farklı ürün: kullanıcı seçer, en yenisi önce
+    });
+
+    it("güncellemede id'li satır korunur (eklenme zamanı değişmez), gönderilmeyen satır silinir", async () => {
+      const c = (await h.call("POST", "/listeler", { ad: "Koru", kunyeNos: [], bekleyenler: [{ urun: "ayva" }, { urun: "nar" }] })).data;
+      const [ayva] = c.bekleyenler;
+      const u = await h.call("PUT", `/listeler/${c.id}`, {
+        ad: "Koru",
+        kunyeNos: [],
+        bekleyenler: [{ id: ayva.id, urun: "ayva", aciklama: "sarı" }, { urun: "hurma" }],
+      });
+      expect(u.data.bekleyenler.map((b: any) => b.urun)).toEqual(["ayva", "hurma"]);
+      expect(u.data.bekleyenler[0]).toMatchObject({ id: ayva.id, olusturma: ayva.olusturma, aciklama: "sarı" });
+
+      // başka listenin satır id'si bu listeye taşınamaz: yeni satır olarak eklenir
+      const diger = (await h.call("POST", "/listeler", { ad: "Diğer", kunyeNos: [], bekleyenler: [{ urun: "kivi" }] })).data;
+      const u2 = await h.call("PUT", `/listeler/${c.id}`, { ad: "Koru", kunyeNos: [], bekleyenler: [{ id: diger.bekleyenler[0].id, urun: "kivi" }] });
+      expect(u2.data.bekleyenler[0].id).not.toBe(diger.bekleyenler[0].id);
+      const d2 = (await h.call("GET", "/listeler")).data.find((x: any) => x.id === diger.id);
+      expect(d2.bekleyenler).toHaveLength(1);
+    });
+
+    it("ne künye ne bekleyen olan liste reddedilir", async () => {
+      const r = await h.call("POST", "/listeler", { ad: "Boş", kunyeNos: [], bekleyenler: [] });
+      expect(r.status).toBe(400);
+    });
+  });
+
   describe("bakım", () => {
     it("eski künyeleri siler, künyesiz kalan evrağı ve dosyasını temizler", async () => {
       const eski = kunye("ESKİ ÜRÜN", "01.01.2025 07:00:00");
@@ -170,6 +252,54 @@ describe.skipIf(!DB)("API + PostgreSQL", () => {
       const ev = (await h.call("GET", "/evraklar")).data as any[];
       expect(ev.some((x) => x.id === e.evrakId)).toBe(false);
     });
+  });
+});
+
+// Eksik gün hesabı arşivin tamamına baktığı için diğer testlerin verisinden etkilenmesin: ayrı şema.
+describe.skipIf(!DB)("eksik evrak günleri", () => {
+  let h: Harness;
+  beforeAll(async () => {
+    h = await startHarness(DB!);
+  });
+  afterAll(async () => {
+    await h?.close();
+  });
+  const upload = async (ad: string, recs: unknown[]) => (await h.call("POST", "/evraklar", evrakForm(ad, recs))).data;
+
+  it("arşiv boşken uyarı yok", async () => {
+    expect((await h.call("GET", "/eksikler")).data).toMatchObject({ eksik: [], muaf: [] });
+  });
+
+  it("ilk künyeden itibaren, bugün hariç, künyesi olmayan günleri bildirir; alım yok işareti gizler ve geri alınır", async () => {
+    // 10 gün önce başlamış, 7 ve 3 gün önce ile dün evrak yüklenmemiş
+    const gunler = [10, 9, 8, 6, 5, 4, 2];
+    await upload("gecmis.pdf", gunler.map((g) => kunye("DOMATES", halTarihi(g))));
+    await upload("bugun.pdf", [kunye("DOMATES", halTarihi(0))]);
+
+    let r = (await h.call("GET", "/eksikler")).data;
+    expect(r.eksik).toEqual([isoGun(1), isoGun(3), isoGun(7)]);
+
+    expect((await h.call("POST", "/eksikler/muaf", { gun: isoGun(3) })).status).toBe(200);
+    r = (await h.call("GET", "/eksikler")).data;
+    expect(r.eksik).toEqual([isoGun(1), isoGun(7)]);
+    expect(r.muaf).toEqual([{ gun: isoGun(3), isaretleyen: "tester" }]);
+
+    expect((await h.call("DELETE", `/eksikler/muaf/${isoGun(3)}`)).status).toBe(200);
+    expect((await h.call("GET", "/eksikler")).data.eksik).toContain(isoGun(3));
+  });
+
+  it("30 günden eski boşluklar bildirilmez", async () => {
+    await upload("cok-eski.pdf", [kunye("ELMA", halTarihi(45))]);
+    const r = (await h.call("GET", "/eksikler")).data;
+    expect(r.eksik.length).toBeLessThanOrEqual(30);
+    expect(r.eksik).not.toContain(isoGun(31));
+    expect(r.eksik).toContain(isoGun(30));
+  });
+
+  it("geçersiz tarih reddedilir", async () => {
+    expect((await h.call("POST", "/eksikler/muaf", { gun: "2026-02-31" })).status).toBe(400);
+    expect((await h.call("POST", "/eksikler/muaf", { gun: "dün" })).status).toBe(400);
+    expect((await h.call("DELETE", "/eksikler/muaf/abc")).status).toBe(400);
   });
 });
 

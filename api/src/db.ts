@@ -93,6 +93,32 @@ const MIGRATIONS: { id: string; sql: string }[] = [
         AS $f$ SELECT translate(t, 'abcçdefgğhıijklmnoöprsştuüvyzqwxİâîûÂÎÛ', 'ABCÇDEFGĞHIIJKLMNOÖPRSŞTUÜVYZQWXIAIUAIU') $f$;
     `,
   },
+  {
+    id: "004_bekleyen_eksik",
+    sql: `
+      -- Aynı ürünün en yeni künyesini hızlı bulmak için (tazelik işaretleri)
+      CREATE INDEX idx_kunyeler_urun_bildirim ON kunyeler(urun, bildirim_ts DESC);
+
+      -- Listede künyesi henüz arşive gelmemiş ürün satırları ("DOMATES - künye bekleniyor").
+      -- Sonradan yüklenen evraklardaki künyelerle eşleştirilir.
+      CREATE TABLE liste_bekleyenler (
+        id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        liste_id  UUID NOT NULL REFERENCES listeler(id) ON DELETE CASCADE,
+        urun      TEXT NOT NULL,
+        aciklama  TEXT NOT NULL DEFAULT '',
+        sira      INTEGER NOT NULL,
+        olusturma TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX idx_liste_bekleyenler_liste ON liste_bekleyenler(liste_id);
+
+      -- "Bu gün alım yapılmadı" diye işaretlenen günler: eksik evrak uyarısında gösterilmez.
+      CREATE TABLE eksik_gun_muaf (
+        gun         DATE PRIMARY KEY,
+        isaretleyen TEXT,
+        zaman       TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `,
+  },
 ];
 
 export async function migrate(pool: Pool): Promise<void> {

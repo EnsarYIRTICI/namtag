@@ -22,4 +22,7 @@ export interface KunyeRow {
   kaynakDosya: string;
   evrakId: string | null;
   yuklemeZamani: string;
+  enYeni: boolean;
+  dahaYeni: string | null;
+  yasGun: number | null;
 }

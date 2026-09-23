@@ -1,12 +1,13 @@
 "use client";
 
 /** Sadece telefonda: arama sonuçlarında gezinirken kaç künye seçildiğini ve kayıt durumunu alttan gösterir. */
-export default function MobileBar({ count, dirty }: { count: number; dirty: boolean }) {
-  if (count === 0) return null;
+export default function MobileBar({ count, bekleyen, dirty }: { count: number; bekleyen: number; dirty: boolean }) {
+  if (count === 0 && bekleyen === 0) return null;
   return (
     <div className="mobile-bar" role="status">
       <span>
-        <b>{count}</b> künye seçili{dirty ? " · kaydedilmedi" : ""}
+        <b>{count}</b> künye{bekleyen ? <> + <b>{bekleyen}</b> bekleyen</> : " seçili"}
+        {dirty ? " · kaydedilmedi" : ""}
       </span>
       <button
         type="button"

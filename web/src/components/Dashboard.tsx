@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, postJson } from "@/lib/api";
-import type { Evrak, Kunye, Liste, Me } from "@/lib/types";
+import type { Bekleyen, Eksikler, Evrak, Kunye, Liste, Me } from "@/lib/types";
+import Bildirimler from "./Bildirimler";
 import EvrakPanel from "./EvrakPanel";
 import ListelerPanel from "./ListelerPanel";
 import LoadingScreen from "./LoadingScreen";
@@ -25,6 +26,8 @@ export default function Dashboard() {
   const [evraklar, setEvraklar] = useState<Evrak[]>([]);
   const [listeler, setListeler] = useState<Liste[]>([]);
   const [selected, setSelected] = useState<Kunye[]>([]);
+  const [bekleyenler, setBekleyenler] = useState<Bekleyen[]>([]);
+  const [eksikler, setEksikler] = useState<Eksikler | null>(null);
   const [aktifListe, setAktifListe] = useState<Liste | null>(null);
   const [status, setStatus] = useState<Status>({ msg: "", cls: "" });
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -35,24 +38,30 @@ export default function Dashboard() {
   const pruneSelected = useCallback(async () => {
     const cur = selectedRef.current;
     if (cur.length === 0) return;
-    const alive = new Set(
-      (await postJson<Kunye[]>("/api/kunyeler/bul", { kunyeNos: cur.map((s) => s.kunyeNo) })).map((k) => k.kunyeNo),
+    // Güncel halini al: silinenler düşer, tazelik işaretleri (en yeni / eski) tazelenir
+    const fresh = new Map(
+      (await postJson<Kunye[]>("/api/kunyeler/bul", { kunyeNos: cur.map((s) => s.kunyeNo) })).map((k) => [k.kunyeNo, k]),
     );
-    setSelected((prev) => prev.filter((s) => alive.has(s.kunyeNo)));
+    setSelected((prev) => prev.filter((s) => fresh.has(s.kunyeNo)).map((s) => fresh.get(s.kunyeNo)!));
   }, []);
 
   // Tüm arşiv indirilmez: sadece toplam sayı, evrak listesi ve kayıtlı listeler. Arama sunucuda yapılır.
   const loadAll = useCallback(async () => {
     try {
-      const [o, e, l] = await Promise.all([
+      const [o, e, l, x] = await Promise.all([
         api<{ toplam: number }>("/api/kunyeler/ozet"),
         api<Evrak[]>("/api/evraklar"),
         api<Liste[]>("/api/listeler"),
+        api<Eksikler>("/api/eksikler"),
         pruneSelected(),
       ]);
       setToplamKunye(o.toplam);
       setEvraklar(e);
       setListeler(l);
+      setEksikler(x);
+      // Açık listedeki bekleyenlerin adaylarını tazele (kaydedilmemiş düzenlemeler korunur)
+      const adaylar = new Map(l.flatMap((li) => li.bekleyenler).map((b) => [b.id, b.adaylar]));
+      setBekleyenler((prev) => prev.map((b) => (b.id && adaylar.has(b.id) ? { ...b, adaylar: adaylar.get(b.id) } : b)));
       setArsivSurumu((v) => v + 1);
       // Açık liste başka cihazdan silindiyse bağlantıyı kopar; güncellendiyse son halini al
       setAktifListe((prev) => (prev ? (l.find((x) => x.id === prev.id) ?? null) : null));
@@ -90,24 +99,51 @@ export default function Dashboard() {
   }, [me, loadAll]);
 
   const dirty = useMemo(() => {
-    const cur = selected.map((s) => s.kunyeNo).join(",");
-    if (!aktifListe) return selected.length > 0;
-    return cur !== aktifListe.kunyeNos.join(",");
-  }, [selected, aktifListe]);
+    const imza = (nos: string[], bs: Bekleyen[]) =>
+      JSON.stringify([nos, bs.map((b) => [b.id ?? "", b.urun, b.aciklama])]);
+    if (!aktifListe) return selected.length > 0 || bekleyenler.length > 0;
+    return imza(selected.map((s) => s.kunyeNo), bekleyenler) !== imza(aktifListe.kunyeNos, aktifListe.bekleyenler);
+  }, [selected, bekleyenler, aktifListe]);
 
   const addSelected = (rec: Kunye) =>
     setSelected((prev) => (prev.some((s) => s.kunyeNo === rec.kunyeNo) ? prev : [...prev, rec]));
   const removeSelected = (no: string) => setSelected((prev) => prev.filter((s) => s.kunyeNo !== no));
 
   function clearSelected() {
-    if (dirty && selected.length > 0 && !confirm("Kaydedilmemiş değişiklikler kaybolacak. Devam edilsin mi?")) return;
+    if (dirty && !confirm("Kaydedilmemiş değişiklikler kaybolacak. Devam edilsin mi?")) return;
     setSelected([]);
+    setBekleyenler([]);
     setAktifListe(null);
+  }
+
+  function bekleyenEkle(urun: string) {
+    const t = urun.trim();
+    if (!t) return;
+    setBekleyenler((prev) =>
+      prev.some((b) => b.urun.toLocaleLowerCase("tr-TR") === t.toLocaleLowerCase("tr-TR")) ? prev : [...prev, { urun: t, aciklama: "" }],
+    );
+  }
+  const bekleyenSil = (i: number) => setBekleyenler((prev) => prev.filter((_, j) => j !== i));
+
+  /** Bekleyen satırı gelen künyeyle değiştirir (listeye künyeyi ekler, satırı kaldırır). */
+  async function eslestir(eslesmeler: { index: number; kunyeNo: string }[]) {
+    try {
+      const items = await postJson<Kunye[]>("/api/kunyeler/bul", { kunyeNos: eslesmeler.map((e) => e.kunyeNo) });
+      setSelected((prev) => [...prev, ...items.filter((k) => !prev.some((s) => s.kunyeNo === k.kunyeNo))]);
+      const kaldir = new Set(eslesmeler.filter((e) => items.some((k) => k.kunyeNo === e.kunyeNo)).map((e) => e.index));
+      setBekleyenler((prev) => prev.filter((_, j) => !kaldir.has(j)));
+    } catch (e) {
+      alert("Künye eklenemedi: " + errMsg(e));
+    }
   }
 
   /** Yeni liste oluşturur ya da açık listeyi günceller. Hata varsa mesajını döner. */
   async function saveList(ad: string): Promise<string | null> {
-    const body = { ad, kunyeNos: selected.map((s) => s.kunyeNo) };
+    const body = {
+      ad,
+      kunyeNos: selected.map((s) => s.kunyeNo),
+      bekleyenler: bekleyenler.map(({ id, urun, aciklama }) => ({ id, urun, aciklama })),
+    };
     try {
       const saved = aktifListe
         ? await api<Liste>(`/api/listeler/${aktifListe.id}`, {
@@ -121,6 +157,7 @@ export default function Dashboard() {
       // Sunucu arşivde olmayanları atlamış olabilir: seçimi kayıtla eşitle
       const keep = new Set(saved.kunyeNos);
       setSelected((prev) => prev.filter((s) => keep.has(s.kunyeNo)));
+      setBekleyenler(saved.bekleyenler);
       return null;
     } catch (e) {
       return "Kaydedilemedi: " + errMsg(e);
@@ -128,10 +165,11 @@ export default function Dashboard() {
   }
 
   async function openList(l: Liste) {
-    if (dirty && selected.length > 0 && !confirm("Seçili künyelerde kaydedilmemiş değişiklik var. Yine de listeyi açalım mı?")) return;
+    if (dirty && !confirm("Seçili künyelerde kaydedilmemiş değişiklik var. Yine de listeyi açalım mı?")) return;
     try {
-      const items = await postJson<Kunye[]>("/api/kunyeler/bul", { kunyeNos: l.kunyeNos });
+      const items = l.kunyeNos.length ? await postJson<Kunye[]>("/api/kunyeler/bul", { kunyeNos: l.kunyeNos }) : [];
       setSelected(items);
+      setBekleyenler(l.bekleyenler);
       setAktifListe(l);
       requestAnimationFrame(() => document.getElementById("secili-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
     } catch (e) {
@@ -160,6 +198,23 @@ export default function Dashboard() {
           setListeler((prev) => prev.map((x) => (x.id === l.id ? l : x)));
         })
         .catch(() => {});
+    }
+  }
+
+  async function muafIsaretle(gun: string) {
+    try {
+      await postJson("/api/eksikler/muaf", { gun });
+      setEksikler(await api<Eksikler>("/api/eksikler"));
+    } catch (e) {
+      alert("İşaretlenemedi: " + errMsg(e));
+    }
+  }
+  async function muafGeriAl(gun: string) {
+    try {
+      await api(`/api/eksikler/muaf/${gun}`, { method: "DELETE" });
+      setEksikler(await api<Eksikler>("/api/eksikler"));
+    } catch (e) {
+      alert("Geri alınamadı: " + errMsg(e));
     }
   }
 
@@ -211,6 +266,15 @@ export default function Dashboard() {
           </div>
         </header>
 
+        <Bildirimler
+          eksikler={eksikler}
+          listeler={listeler}
+          aktifId={aktifListe?.id ?? null}
+          onMuaf={muafIsaretle}
+          onMuafGeriAl={muafGeriAl}
+          onListeAc={(l) => void openList(l)}
+        />
+
         {/* Telefonda tek sütun ve sıra: Ara → Seçili → Kayıtlı listeler → Yükle → Evraklar.
             Bilgisayarda iki sütun (sol: yükle/evrak/ara, sağ: seçili/listeler). */}
         <div className="wrap">
@@ -223,16 +287,31 @@ export default function Dashboard() {
                 <EvrakPanel evraklar={evraklar} setStatus={setStatus} onChanged={loadAll} />
               </div>
               <div className="order-1 md:order-none">
-                <SearchPanel toplam={toplamKunye} selected={selected} onAdd={addSelected} refreshKey={arsivSurumu} />
+                <SearchPanel
+                  toplam={toplamKunye}
+                  selected={selected}
+                  onAdd={addSelected}
+                  refreshKey={arsivSurumu}
+                  onBekleyenEkle={bekleyenEkle}
+                  bekleyenAdlari={bekleyenler.map((b) => b.urun.toLocaleLowerCase("tr-TR"))}
+                />
               </div>
             </div>
             <div className="contents md:block">
               <div className="order-2 md:order-none">
                 <SelectedPanel
                   selected={selected}
+                  bekleyenler={bekleyenler}
                   aktifListe={aktifListe}
                   dirty={dirty}
                   onRemove={removeSelected}
+                  onBekleyenSil={bekleyenSil}
+                  onEslestir={(i, a) => eslestir([{ index: i, kunyeNo: a.kunyeNo }])}
+                  onTumunuEslestir={() =>
+                    eslestir(
+                      bekleyenler.flatMap((b, i) => (b.adaylar?.length === 1 ? [{ index: i, kunyeNo: b.adaylar[0]!.kunyeNo }] : [])),
+                    )
+                  }
                   onClear={clearSelected}
                   onSave={saveList}
                   onPrint={print}
@@ -249,7 +328,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <MobileBar count={selected.length} dirty={dirty} />
+        <MobileBar count={selected.length} bekleyen={bekleyenler.length} dirty={dirty} />
       </div>
       <PrintArea selected={selected} />
     </>

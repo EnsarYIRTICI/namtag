@@ -455,3 +455,129 @@
     @apply ml-auto;
   }
 }
+
+/* Tazelik işaretleri, bekleyen ürünler, bildirimler */
+@layer components {
+  .tz-satir {
+    @apply flex flex-wrap gap-1 mt-1;
+  }
+  .tz {
+    @apply inline-flex items-center rounded-full px-2 py-px text-[11px] font-semibold leading-[18px] border;
+  }
+  .tz-yeni {
+    @apply text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 bg-emerald-500/10;
+  }
+  .tz-eski {
+    @apply text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 bg-amber-500/10;
+  }
+  .tz-cok-eski {
+    @apply text-red-700 dark:text-red-300 border-red-300 dark:border-red-800 bg-red-500/10;
+  }
+  .tz-not {
+    @apply text-stone-600 dark:text-stone-300 border-stone-300 dark:border-stone-600 font-normal;
+  }
+  .tz-ozet {
+    @apply -mt-1 mb-2.5 text-[12.5px] text-amber-800 dark:text-amber-300;
+  }
+
+  .bekleyen-oneri {
+    @apply flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[12.5px] text-stone-500 dark:text-stone-400;
+  }
+  .bekleyen-oneri button {
+    @apply bg-transparent border border-dashed border-clay-400 text-clay-600 dark:text-clay-400 rounded-md px-2.5 py-1.5 text-[12.5px] font-semibold cursor-pointer hover:bg-clay-500/10;
+  }
+
+  .bekleyen-blok {
+    @apply mb-3 flex flex-col gap-1.5;
+  }
+  .bekleyen-baslik {
+    @apply flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-semibold text-stone-600 dark:text-stone-300 mt-1;
+  }
+  .bekleyen-baslik button,
+  .aday-satir button {
+    @apply border-0 bg-clay-500 hover:bg-clay-600 text-white rounded-md px-2.5 py-1 text-[12px] font-semibold cursor-pointer;
+  }
+  .bekleyen-item {
+    @apply flex justify-between items-start gap-2 border border-dashed border-stone-300 dark:border-stone-600 rounded-lg px-2.5 py-[7px] text-[13px];
+  }
+  .bekleyen-item.geldi {
+    @apply border-solid border-clay-400 bg-clay-500/5;
+  }
+  .bekleyen-item b {
+    @apply block font-semibold;
+  }
+  .bekleyen-item small {
+    @apply block text-[11.5px] text-stone-500 dark:text-stone-400;
+  }
+  .bekleyen-item .x {
+    @apply cursor-pointer text-red-600 dark:text-red-400 font-bold px-1.5 text-[15px] bg-transparent border-0;
+  }
+  .aday-satir {
+    @apply mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-clay-600 dark:text-clay-400;
+  }
+  .aday-secenek {
+    @apply flex flex-wrap gap-1;
+  }
+  .aday-secenek button {
+    @apply bg-transparent text-clay-600 dark:text-clay-400 border border-clay-400 hover:bg-clay-500/10;
+  }
+  .print-not {
+    @apply mt-1 text-[11.5px] text-center text-stone-500 dark:text-stone-400;
+  }
+  .liste-info .geldi-not {
+    @apply text-clay-600 dark:text-clay-400 font-semibold;
+  }
+
+  .bildirimler {
+    @apply flex flex-col gap-2;
+  }
+  .bildirim {
+    @apply rounded-xl border px-4 py-3 text-[13px];
+  }
+  .bildirim.geldi {
+    @apply border-clay-400 bg-clay-500/10 flex flex-wrap items-center justify-between gap-2;
+  }
+  .bildirim-aksiyon {
+    @apply flex flex-wrap gap-1.5;
+  }
+  .bildirim-aksiyon button {
+    @apply border-0 bg-clay-500 hover:bg-clay-600 text-white rounded-md px-3 py-1.5 text-[12.5px] font-semibold cursor-pointer;
+  }
+  .bildirim-aksiyon .acik-not {
+    @apply text-[12.5px] text-stone-500 dark:text-stone-400;
+  }
+  .bildirim.eksik {
+    @apply border-amber-300 dark:border-amber-800 bg-amber-500/10;
+  }
+  .bildirim.sessiz {
+    @apply border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 py-2;
+  }
+  /* list-item: tarayıcının aç/kapa oku görünsün (flex yapınca kayboluyor) */
+  .bildirim summary {
+    @apply cursor-pointer select-none;
+  }
+  .bildirim summary .son-gun {
+    @apply ml-1.5 text-[12px] font-normal text-stone-600 dark:text-stone-400 whitespace-nowrap;
+  }
+  .bildirim-aciklama {
+    @apply mt-2 mb-2 text-[12px] text-stone-600 dark:text-stone-400;
+  }
+  .bildirim ul {
+    @apply list-none m-0 p-0 flex flex-col gap-1 max-h-[260px] overflow-y-auto;
+  }
+  .bildirim li {
+    @apply flex items-center justify-between gap-2 py-1 border-b border-amber-500/15 last:border-b-0;
+  }
+  .bildirim li button {
+    @apply bg-transparent border border-stone-300 dark:border-stone-600 rounded-md px-2.5 py-1 text-[12px] cursor-pointer text-inherit hover:bg-stone-500/10 disabled:opacity-50;
+  }
+  .muaf {
+    @apply mt-3;
+  }
+  .muaf-baslik {
+    @apply text-[12px] text-stone-500 dark:text-stone-400 mb-1;
+  }
+  .muaf li {
+    @apply border-stone-500/15 text-stone-500 dark:text-stone-400;
+  }
+}

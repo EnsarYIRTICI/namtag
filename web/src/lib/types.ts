@@ -11,6 +11,29 @@ export interface Kunye {
   kaynakDosya: string;
   evrakId: string | null;
   yuklemeZamani: string;
+  /** Aynı ürünün arşivdeki en yeni künyesi mi */
+  enYeni?: boolean;
+  /** En yeni değilse, en yeni künyenin bildirim tarihi */
+  dahaYeni?: string | null;
+  /** Bildirimden bu yana geçen gün */
+  yasGun?: number | null;
+}
+
+/** Künyesi henüz arşive gelmemiş, listeye not düşülmüş ürün */
+export interface Bekleyen {
+  /** Sunucudaki satır; kaydedilmemiş yeni satırda yok */
+  id?: string;
+  urun: string;
+  aciklama: string;
+  olusturma?: string;
+  /** Not düşüldükten sonra yüklenen ve adı eşleşen künyeler (her farklı ürün için en yenisi) */
+  adaylar?: { kunyeNo: string; urun: string; bildirimTarihi: string }[];
+}
+
+export interface Eksikler {
+  pencereGun: number;
+  eksik: string[];
+  muaf: { gun: string; isaretleyen: string }[];
 }
 
 export interface Evrak {
@@ -47,4 +70,5 @@ export interface Liste {
   guncelleme: string;
   sonYazdirma: string | null;
   kunyeNos: string[];
+  bekleyenler: Bekleyen[];
 }

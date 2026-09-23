@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { Kunye } from "@/lib/types";
+import TazelikIsaret from "./TazelikIsaret";
 
 interface Props {
   /** Arşivdeki toplam künye sayısı (rozet) */
@@ -10,6 +11,10 @@ interface Props {
   onAdd: (k: Kunye) => void;
   /** Arşiv değişince (yükleme/silme) artar; açık arama yeniden yapılır */
   refreshKey: number;
+  /** Künyesi arşivde olmayan ürünü listeye "bekleyen" olarak ekler */
+  onBekleyenEkle: (urun: string) => void;
+  /** Zaten bekleyen olarak eklenmiş ürün adları (küçük harf) */
+  bekleyenAdlari: string[];
 }
 
 interface Sonuc {
@@ -19,7 +24,7 @@ interface Sonuc {
 
 const LIMIT = 20;
 
-export default function SearchPanel({ toplam, selected, onAdd, refreshKey }: Props) {
+export default function SearchPanel({ toplam, selected, onAdd, refreshKey, onBekleyenEkle, bekleyenAdlari }: Props) {
   const [query, setQuery] = useState("");
   const [sonuc, setSonuc] = useState<Sonuc | null>(null);
   const [loading, setLoading] = useState(false);
@@ -92,6 +97,7 @@ export default function SearchPanel({ toplam, selected, onAdd, refreshKey }: Pro
               <div className={"rcard" + (loading ? " opacity-60" : "")} key={r.kunyeNo}>
                 <div className="rinfo">
                   <b>{r.urun}</b>
+                  <TazelikIsaret k={r} />
                   <div className="sub">
                     {r.tip || ""} · {r.uretimYeri || ""}
                   </div>
@@ -108,6 +114,22 @@ export default function SearchPanel({ toplam, selected, onAdd, refreshKey }: Pro
         {!bos && !error && sonuc && sonuc.toplam > sonuc.items.length && (
           <div className="empty">
             {sonuc.toplam} sonuçtan en yeni {sonuc.items.length} tanesi gösteriliyor. Daraltmak için aramayı uzatın.
+          </div>
+        )}
+        {!bos && !error && sonuc && !loading && (
+          <div className="bekleyen-oneri">
+            {bekleyenAdlari.includes(query.trim().toLocaleLowerCase("tr-TR")) ? (
+              <span>
+                &quot;{query.trim()}&quot; bekleyen ürünlere eklendi.
+              </span>
+            ) : (
+              <>
+                <span>{sonuc.items.length === 0 ? "Künyesi henüz gelmediyse" : "Aradığın künye yok mu?"}</span>
+                <button type="button" onClick={() => onBekleyenEkle(query.trim())}>
+                  ⏳ &quot;{query.trim()}&quot; ürününü bekleyen olarak ekle
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

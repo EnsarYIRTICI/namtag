@@ -121,3 +121,18 @@ export function evrakForm(ad: string, records: unknown[], content = "%PDF-1.4 te
   f.append("records", JSON.stringify(records));
   return f;
 }
+
+/** Şu andan `gunOnce` gün önceki an, Hal biçiminde ("dd.mm.yyyy hh:mm:ss", Türkiye saati UTC+3). */
+export function halTarihi(gunOnce: number, saat = 7): string {
+  const trNow = new Date(Date.now() + 3 * 3600_000); // UTC alanları artık Türkiye saatini gösterir
+  const t = new Date(Date.UTC(trNow.getUTCFullYear(), trNow.getUTCMonth(), trNow.getUTCDate() - gunOnce, saat, 0, 0));
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(t.getUTCDate())}.${p(t.getUTCMonth() + 1)}.${t.getUTCFullYear()} ${p(t.getUTCHours())}:00:00`;
+}
+
+/** Şu andan `gunOnce` gün önceki Türkiye günü, "YYYY-MM-DD". */
+export function isoGun(gunOnce: number): string {
+  const trNow = new Date(Date.now() + 3 * 3600_000);
+  const t = new Date(Date.UTC(trNow.getUTCFullYear(), trNow.getUTCMonth(), trNow.getUTCDate() - gunOnce));
+  return t.toISOString().slice(0, 10);
+}

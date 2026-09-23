@@ -4,15 +4,35 @@ import type { Deps } from "../deps";
 import type { KunyeRow } from "../types";
 import { pruneEmptyEvraklar } from "./prune";
 
-const COLUMNS = `
-  kunye_no AS "kunyeNo", urun, COALESCE(tip,'') AS tip,
-  COALESCE(bildirim_tarihi,'') AS "bildirimTarihi",
-  COALESCE(uretim_yeri,'') AS "uretimYeri",
-  COALESCE(uretim_tarihi,'') AS "uretimTarihi",
-  COALESCE(uretici_adi,'') AS "ureticiAdi",
-  COALESCE(miktar,'') AS miktar, COALESCE(fiyat,'') AS fiyat,
-  COALESCE(kaynak_dosya,'') AS "kaynakDosya",
-  evrak_id AS "evrakId", yukleme_zamani AS "yuklemeZamani"`;
+/**
+ * Künye alanları + tazelik bilgisi. Sorgularda kunyeler tablosu "k" takma adıyla kullanılmalı ve
+ * TAZELIK_JOIN eklenmeli.
+ *   enYeni   : aynı ürünün (birebir aynı ürün adı) arşivdeki en yeni bildirimli künyesi mi
+ *   dahaYeni : değilse, en yeni künyenin bildirim tarihi (metin)
+ *   yasGun   : bildirimden bu yana geçen tam gün (bildirim tarihi okunamadıysa null)
+ */
+export const COLUMNS = `
+  k.kunye_no AS "kunyeNo", k.urun, COALESCE(k.tip,'') AS tip,
+  COALESCE(k.bildirim_tarihi,'') AS "bildirimTarihi",
+  COALESCE(k.uretim_yeri,'') AS "uretimYeri",
+  COALESCE(k.uretim_tarihi,'') AS "uretimTarihi",
+  COALESCE(k.uretici_adi,'') AS "ureticiAdi",
+  COALESCE(k.miktar,'') AS miktar, COALESCE(k.fiyat,'') AS fiyat,
+  COALESCE(k.kaynak_dosya,'') AS "kaynakDosya",
+  k.evrak_id AS "evrakId", k.yukleme_zamani AS "yuklemeZamani",
+  (k.bildirim_ts IS NOT NULL AND dy.tarih IS NULL) AS "enYeni",
+  dy.tarih AS "dahaYeni",
+  CASE WHEN k.bildirim_ts IS NULL THEN NULL
+       ELSE GREATEST(0, floor(extract(epoch FROM now() - k.bildirim_ts) / 86400))::int END AS "yasGun"`;
+
+export const TAZELIK_JOIN = `
+  LEFT JOIN LATERAL (
+    SELECT COALESCE(k2.bildirim_tarihi, '') AS tarih
+      FROM kunyeler k2
+     WHERE k2.urun = k.urun AND k2.bildirim_ts > k.bildirim_ts
+     ORDER BY k2.bildirim_ts DESC
+     LIMIT 1
+  ) dy ON true`;
 
 export const aramaQuery = z.object({
   q: z
@@ -44,9 +64,10 @@ export function kunyelerRoutes(d: Deps): Router {
     const rows = (
       await d.pool.query(
         `SELECT ${COLUMNS}, COUNT(*) OVER()::int AS "_toplam"
-           FROM kunyeler
-          WHERE strpos(tr_fold(urun), tr_fold($1)) > 0
-          ORDER BY bildirim_ts DESC NULLS LAST, yukleme_zamani DESC, kunye_no
+           FROM kunyeler k
+           ${TAZELIK_JOIN}
+          WHERE strpos(tr_fold(k.urun), tr_fold($1)) > 0
+          ORDER BY k.bildirim_ts DESC NULLS LAST, k.yukleme_zamani DESC, k.kunye_no
           LIMIT $2`,
         [q, limit],
       )
@@ -75,6 +96,7 @@ export function kunyelerRoutes(d: Deps): Router {
         `SELECT ${COLUMNS}
            FROM unnest($1::text[]) WITH ORDINALITY AS t(no, sira)
            JOIN kunyeler k ON k.kunye_no = t.no
+           ${TAZELIK_JOIN}
           ORDER BY t.sira`,
         [b.data.kunyeNos],
       )

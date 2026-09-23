@@ -38,6 +38,16 @@ Rol/yetki ayrımı yoktur: giriş yapan herkes yükleyebilir, silebilir, bakım 
 
 Seçili künyeler "Listeyi kaydet" ile adlandırılıp sunucuya kaydedilir; aynı hesapla başka bir cihazdan (örn. telefondan hazırlayıp bilgisayardan) "Kayıtlı Listeler" panelinden açılıp yazdırılabilir. Açık liste değiştirilmeden yazdırılırsa "Yazdırıldı" olarak işaretlenir. Bir künye arşivden silinirse (evrak silme ya da 6 ay temizliği) listelerden de düşer. Telefonda panel sırası aramayı öne alacak şekilde değişir.
 
+### Bekleyen ürünler
+
+Aramada künyesi bulunamayan ürün "bekleyen olarak ekle" ile listeye not düşülür (örn. manavda etiketi olmayan ürün). Sonradan yüklenen bir evrakta adı eşleşen künye çıkınca sayfanın üstünde "Bekleyen N ürünün künyesi geldi" uyarısı görünür; liste açılıp tek dokunuşla künye eklenir. Sadece not düşüldükten **sonra** yüklenen künyeler önerilir. Birden fazla ürün eşleşirse (örn. "biber" için sivri ve çarliston) seçim kullanıcıya bırakılır. Bekleyen ürünler yazdırılmaz.
+
+### Künye tazeliği ve eksik evrak uyarısı
+
+Arama sonuçlarında ve seçili künyelerde, ürünün arşivdeki en yeni künyesi "✓ En yeni" ile işaretlenir; daha yenisi varsa tarihi gösterilir. Bildirimi 15 günden eski künye sarı, 30 günden eski kırmızı uyarıyla gösterilir (eşikler: `web/src/lib/tazelik.ts`). Yaş bildirim tarihine göre hesaplanır, üretim tarihine göre değil.
+
+Son 30 günde (bugün hariç, sistemdeki ilk künyeden önceki günler sayılmaz) hiçbir künyesi olmayan günler "evrakı yüklenmemiş" olarak bildirilir. Alım yapılmayan günler "Alım yapılmadı" ile işaretlenip uyarıdan çıkarılabilir, işaret geri alınabilir.
+
 Arama sunucuda yapılır (Türkçe harf ve büyük/küçük harf duyarsız, en yeni bildirim önce, en fazla 20 sonuç); arayüz açılışta tüm arşivi indirmez.
 
 ## Eski sürümden (SQLite) veri aktarma

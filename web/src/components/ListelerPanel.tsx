@@ -34,9 +34,15 @@ export default function ListelerPanel({ listeler, aktifId, onOpen, onDelete }: P
               <div className="liste-info">
                 <b>{l.ad}</b>
                 <span>
-                  {l.kunyeNos.length} künye · {fmt(l.guncelleme)}
+                  {l.kunyeNos.length} künye
+                  {l.bekleyenler.length ? ` + ${l.bekleyenler.length} bekleyen` : ""} · {fmt(l.guncelleme)}
                   {l.olusturan ? " · " + l.olusturan : ""}
                 </span>
+                {l.bekleyenler.some((b) => b.adaylar?.length) && (
+                  <span className="geldi-not">
+                    📬 {l.bekleyenler.filter((b) => b.adaylar?.length).length} bekleyen ürünün künyesi geldi
+                  </span>
+                )}
                 <span className={l.sonYazdirma ? "yazdirildi" : "bekliyor"}>
                   {l.sonYazdirma ? "Yazdırıldı: " + fmt(l.sonYazdirma) : "Henüz yazdırılmadı"}
                 </span>
@@ -45,7 +51,7 @@ export default function ListelerPanel({ listeler, aktifId, onOpen, onDelete }: P
                 {aktif ? (
                   <span className="acik">Açık</span>
                 ) : (
-                  <button type="button" className="ac" onClick={() => onOpen(l)} disabled={l.kunyeNos.length === 0}>
+                  <button type="button" className="ac" onClick={() => onOpen(l)}>
                     Aç
                   </button>
                 )}
