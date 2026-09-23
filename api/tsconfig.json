@@ -10,8 +10,15 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "sourceMap": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/test/**"
+  ]
 }

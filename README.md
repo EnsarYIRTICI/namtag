@@ -38,6 +38,8 @@ Rol/yetki ayrımı yoktur: giriş yapan herkes yükleyebilir, silebilir, bakım 
 
 Seçili künyeler "Listeyi kaydet" ile adlandırılıp sunucuya kaydedilir; aynı hesapla başka bir cihazdan (örn. telefondan hazırlayıp bilgisayardan) "Kayıtlı Listeler" panelinden açılıp yazdırılabilir. Açık liste değiştirilmeden yazdırılırsa "Yazdırıldı" olarak işaretlenir. Bir künye arşivden silinirse (evrak silme ya da 6 ay temizliği) listelerden de düşer. Telefonda panel sırası aramayı öne alacak şekilde değişir.
 
+Arama sunucuda yapılır (Türkçe harf ve büyük/küçük harf duyarsız, en yeni bildirim önce, en fazla 20 sonuç); arayüz açılışta tüm arşivi indirmez.
+
 ## Eski sürümden (SQLite) veri aktarma
 
 Eski sunucuda (sqlite3 komutu gerekir):
@@ -81,6 +83,17 @@ cd api && npm i && DATABASE_URL=... S3_ENDPOINT=... S3_ACCESS_KEY=... S3_SECRET_
 cd web && npm i && npm run dev        # /api istekleri localhost:4000'e yönlenir
 npm test                              # hem api/ hem web/ içinde
 ```
+
+`api/` içindeki `npm test`, veritabanı gerektiren testleri `TEST_DATABASE_URL` yoksa atlar (ekranda uyarı çıkar). Bunlar
+evrak yükleme, arama, kayıtlı listeler, silme ve bakım uçlarını gerçek PostgreSQL üzerinde uçtan uca dener. Çalıştırmak için:
+
+```bash
+cd api && npm run test:db             # Docker ile geçici PostgreSQL 17 açar, testlerden sonra siler
+# ya da elinizdeki bir PostgreSQL ile (her test çalışması kendi geçici şemasını açıp siler):
+TEST_DATABASE_URL=postgres://kullanici:sifre@localhost:5432/veritabani npm test
+```
+
+Değişiklik yaptıktan sonra, özellikle SQL'e dokunduysanız, `npm run test:db` çalıştırmadan dağıtmayın.
 
 ## Notlar
 

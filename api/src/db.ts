@@ -83,6 +83,16 @@ const MIGRATIONS: { id: string; sql: string }[] = [
       CREATE INDEX idx_liste_kunyeler_kunye ON liste_kunyeler(kunye_no);
     `,
   },
+  {
+    id: "003_arama",
+    sql: `
+      -- Türkçe büyük/küçük harf ve i/ı/İ/I duyarsız arama anahtarı. upper() veritabanı yereline (locale) bağlı
+      -- olduğu için kullanılmıyor; translate karakter karakter çalışır, her kurulumda aynı sonucu verir.
+      CREATE FUNCTION tr_fold(t text) RETURNS text
+        LANGUAGE sql IMMUTABLE PARALLEL SAFE
+        AS $f$ SELECT translate(t, 'abcçdefgğhıijklmnoöprsştuüvyzqwxİâîûÂÎÛ', 'ABCÇDEFGĞHIIJKLMNOÖPRSŞTUÜVYZQWXIAIUAIU') $f$;
+    `,
+  },
 ];
 
 export async function migrate(pool: Pool): Promise<void> {

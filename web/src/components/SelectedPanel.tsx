@@ -79,7 +79,8 @@ export default function SelectedPanel({ selected, aktifListe, dirty, onRemove, o
             id="liste-adi"
             type="text"
             maxLength={100}
-            placeholder={"Liste adı (boş kalırsa: " + varsayilanAd() + ")"}
+            placeholder="Liste adı (isteğe bağlı)"
+            title={"Boş bırakılırsa ad olarak tarih kullanılır: " + varsayilanAd()}
             value={ad}
             onChange={(e) => setAd(e.target.value)}
           />

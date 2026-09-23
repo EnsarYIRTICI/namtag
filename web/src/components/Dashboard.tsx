@@ -20,37 +20,46 @@ const errMsg = (e: unknown) => (e instanceof TypeError ? "Sunucuya ulaşılamıy
 
 export default function Dashboard() {
   const [me, setMe] = useState<Me | null>(null);
-  const [records, setRecords] = useState<Kunye[]>([]);
+  const [toplamKunye, setToplamKunye] = useState(0);
+  const [arsivSurumu, setArsivSurumu] = useState(0);
   const [evraklar, setEvraklar] = useState<Evrak[]>([]);
   const [listeler, setListeler] = useState<Liste[]>([]);
   const [selected, setSelected] = useState<Kunye[]>([]);
   const [aktifListe, setAktifListe] = useState<Liste | null>(null);
   const [status, setStatus] = useState<Status>({ msg: "", cls: "" });
   const [loadError, setLoadError] = useState<string | null>(null);
-  const recordsRef = useRef<Kunye[]>([]);
+  const selectedRef = useRef<Kunye[]>([]);
+  selectedRef.current = selected;
 
+  /** Seçili künyelerden arşivden silinmiş olanları atar (evrak silme / temizlik sonrası). */
+  const pruneSelected = useCallback(async () => {
+    const cur = selectedRef.current;
+    if (cur.length === 0) return;
+    const alive = new Set(
+      (await postJson<Kunye[]>("/api/kunyeler/bul", { kunyeNos: cur.map((s) => s.kunyeNo) })).map((k) => k.kunyeNo),
+    );
+    setSelected((prev) => prev.filter((s) => alive.has(s.kunyeNo)));
+  }, []);
+
+  // Tüm arşiv indirilmez: sadece toplam sayı, evrak listesi ve kayıtlı listeler. Arama sunucuda yapılır.
   const loadAll = useCallback(async () => {
     try {
-      const [k, e, l] = await Promise.all([
-        api<Kunye[]>("/api/kunyeler"),
+      const [o, e, l] = await Promise.all([
+        api<{ toplam: number }>("/api/kunyeler/ozet"),
         api<Evrak[]>("/api/evraklar"),
         api<Liste[]>("/api/listeler"),
+        pruneSelected(),
       ]);
-      recordsRef.current = k;
-      setRecords(k);
+      setToplamKunye(o.toplam);
       setEvraklar(e);
       setListeler(l);
-      // Arşivden silinmiş künyeler seçili listede kalmasın
-      const alive = new Set(k.map((r) => r.kunyeNo));
-      setSelected((prev) => prev.filter((s) => alive.has(s.kunyeNo)));
+      setArsivSurumu((v) => v + 1);
       // Açık liste başka cihazdan silindiyse bağlantıyı kopar; güncellendiyse son halini al
       setAktifListe((prev) => (prev ? (l.find((x) => x.id === prev.id) ?? null) : null));
-      return k;
     } catch (err) {
       setStatus({ msg: "Arşiv okunamadı: " + errMsg(err), cls: "err" });
-      return null;
     }
-  }, []);
+  }, [pruneSelected]);
 
   const loadMe = useCallback(() => {
     setLoadError(null);
@@ -120,13 +129,14 @@ export default function Dashboard() {
 
   async function openList(l: Liste) {
     if (dirty && selected.length > 0 && !confirm("Seçili künyelerde kaydedilmemiş değişiklik var. Yine de listeyi açalım mı?")) return;
-    let pool = recordsRef.current;
-    // Liste, bu cihaz arşivi yükledikten sonra eklenen künyeleri içeriyorsa önce arşivi tazele
-    if (l.kunyeNos.some((no) => !pool.some((r) => r.kunyeNo === no))) pool = (await loadAll()) ?? pool;
-    const byNo = new Map(pool.map((r) => [r.kunyeNo, r]));
-    setSelected(l.kunyeNos.map((no) => byNo.get(no)).filter((r): r is Kunye => !!r));
-    setAktifListe(l);
-    requestAnimationFrame(() => document.getElementById("secili-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    try {
+      const items = await postJson<Kunye[]>("/api/kunyeler/bul", { kunyeNos: l.kunyeNos });
+      setSelected(items);
+      setAktifListe(l);
+      requestAnimationFrame(() => document.getElementById("secili-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    } catch (e) {
+      alert("Liste açılamadı: " + errMsg(e));
+    }
   }
 
   async function deleteList(l: Liste): Promise<string | null> {
@@ -207,13 +217,13 @@ export default function Dashboard() {
           <div className="layout-grid">
             <div className="contents md:block">
               <div className="order-4 md:order-none">
-                <UploadPanel status={status} setStatus={setStatus} onChanged={async () => void (await loadAll())} />
+                <UploadPanel status={status} setStatus={setStatus} onChanged={loadAll} />
               </div>
               <div className="order-5 md:order-none">
-                <EvrakPanel evraklar={evraklar} setStatus={setStatus} onChanged={async () => void (await loadAll())} />
+                <EvrakPanel evraklar={evraklar} setStatus={setStatus} onChanged={loadAll} />
               </div>
               <div className="order-1 md:order-none">
-                <SearchPanel records={records} selected={selected} onAdd={addSelected} />
+                <SearchPanel toplam={toplamKunye} selected={selected} onAdd={addSelected} refreshKey={arsivSurumu} />
               </div>
             </div>
             <div className="contents md:block">
