@@ -1,5 +1,6 @@
 "use client";
 import { linesToRecords, type ParsedKunye } from "./parser";
+import { loadPdfjs } from "./pdfjs";
 
 /** Dosyayı (CSV/HTML/PDF) satırlara böler. Sadece tarayıcıda çalışır. */
 
@@ -36,10 +37,9 @@ async function htmlLines(file: File): Promise<string[]> {
 }
 
 async function pdfLines(file: File): Promise<string[]> {
-  let pdfjs: typeof import("pdfjs-dist");
+  let pdfjs: Awaited<ReturnType<typeof loadPdfjs>>;
   try {
-    pdfjs = await import("pdfjs-dist");
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    pdfjs = await loadPdfjs();
   } catch {
     throw new Error("PDF okuyucu kütüphanesi yüklenemedi. CSV ya da HTML formatını deneyin.");
   }

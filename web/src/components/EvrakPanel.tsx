@@ -1,7 +1,9 @@
 "use client";
+import { useState } from "react";
 import { api } from "@/lib/api";
 import type { Evrak } from "@/lib/types";
 import type { Status } from "./Dashboard";
+import EvrakViewer from "./EvrakViewer";
 
 interface Props {
   evraklar: Evrak[];
@@ -17,6 +19,8 @@ function fmtSize(n: number | null): string {
 }
 
 export default function EvrakPanel({ evraklar, setStatus, onChanged }: Props) {
+  const [acik, setAcik] = useState<Evrak | null>(null);
+
   async function remove(e: Evrak) {
     const ad = e.ad || "(adsız evrak)";
     const ek = e.dosyaVar ? " Arşivlenmiş orijinal dosya da silinir." : "";
@@ -48,6 +52,11 @@ export default function EvrakPanel({ evraklar, setStatus, onChanged }: Props) {
             </div>
             <div className="evrak-actions">
               {e.dosyaVar && (
+                <button type="button" className="goster" onClick={() => setAcik(e)}>
+                  Görüntüle
+                </button>
+              )}
+              {e.dosyaVar && (
                 <a className="dl" href={`/api/evraklar/${e.id}/dosya`} title="Yüklenen orijinal dosyayı indir">
                   İndir
                 </a>
@@ -59,6 +68,7 @@ export default function EvrakPanel({ evraklar, setStatus, onChanged }: Props) {
           </div>
         ))}
       </div>
+      {acik && <EvrakViewer evrak={acik} onClose={() => setAcik(null)} />}
     </div>
   );
 }

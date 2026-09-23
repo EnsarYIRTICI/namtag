@@ -8,5 +8,6 @@ const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const pkgDir = dirname(require.resolve("pdfjs-dist/package.json"));
 mkdirSync(join(root, "public"), { recursive: true });
-copyFileSync(join(pkgDir, "build", "pdf.worker.min.mjs"), join(root, "public", "pdf.worker.min.mjs"));
+// legacy: eski tarayıcılar için yamalı derleme (bkz. src/lib/pdfjs.ts)
+copyFileSync(join(pkgDir, "legacy", "build", "pdf.worker.min.mjs"), join(root, "public", "pdf.worker.min.mjs"));
 console.log("pdf.worker.min.mjs -> public/");

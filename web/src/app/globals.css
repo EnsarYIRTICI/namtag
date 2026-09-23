@@ -121,6 +121,9 @@
   .evrak-item .evrak-actions .del {
     @apply text-red-600 border-red-300 hover:bg-red-600/10;
   }
+  .evrak-item .evrak-actions .goster {
+    @apply text-stone-700 dark:text-stone-200 border-stone-300 dark:border-stone-600 hover:bg-stone-500/10;
+  }
   .evrak-item .evrak-actions .dl {
     @apply text-clay-500 border-clay-400 hover:bg-clay-500/10;
   }
@@ -383,5 +386,72 @@
   /* alt çubuk son paneli örtmesin */
   #app-root {
     padding-bottom: 72px;
+  }
+}
+
+/* Evrak görüntüleyici */
+@layer components {
+  .viewer-arka {
+    @apply fixed inset-0 z-50 bg-black/60 flex items-stretch justify-center md:p-6;
+  }
+  .viewer {
+    @apply flex flex-col w-full max-w-[980px] bg-white dark:bg-stone-900 md:rounded-xl md:border border-stone-200 dark:border-stone-700 overflow-hidden shadow-2xl;
+  }
+  .viewer-ust {
+    @apply flex items-center justify-between gap-3 px-4 py-3 border-b border-stone-200 dark:border-stone-700;
+    padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+  }
+  .viewer-ust b {
+    @apply block text-[14.5px] truncate;
+  }
+  .viewer-ust span {
+    @apply block text-xs text-stone-500 dark:text-stone-400;
+  }
+  .viewer-araclar {
+    @apply flex items-center gap-2 flex-shrink-0;
+  }
+  .viewer-zoom {
+    @apply hidden sm:flex items-center border border-stone-200 dark:border-stone-700 rounded-md overflow-hidden;
+  }
+  .viewer-zoom button {
+    @apply bg-transparent border-0 px-2.5 py-1.5 text-[13px] cursor-pointer text-inherit min-w-[34px] hover:bg-stone-500/10 disabled:opacity-35 disabled:cursor-default tabular-nums;
+  }
+  .viewer-indir {
+    @apply text-clay-600 dark:text-clay-400 border border-clay-400 rounded-md px-3 py-1.5 text-[12.5px] font-semibold no-underline hover:bg-clay-500/10;
+  }
+  .viewer-kapat {
+    @apply bg-transparent border-0 text-lg leading-none px-2 py-1 cursor-pointer text-inherit rounded-md hover:bg-stone-500/10 focus-visible:outline-2 focus-visible:outline-clay-500;
+  }
+  .viewer-govde {
+    @apply flex-1 min-h-0 overflow-auto bg-stone-200 dark:bg-stone-950;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* w-max: yakınlaştırınca sayfa yatayda da kaydırılabilsin */
+  .viewer-pdf {
+    @apply flex flex-col items-center gap-3 p-3 min-w-full w-max;
+  }
+  .viewer-sayfa {
+    @apply block bg-white shadow-md max-w-none;
+  }
+  .viewer-ilerleme {
+    @apply text-[13px] text-stone-500 dark:text-stone-400 px-4 py-3;
+  }
+  .viewer-html {
+    @apply block w-full h-full min-h-[70vh] border-0 bg-white;
+  }
+  .viewer-csv {
+    @apply p-3;
+  }
+  .viewer-csv table {
+    @apply border-collapse bg-white dark:bg-stone-900 text-[12.5px];
+  }
+  .viewer-csv td {
+    @apply border border-stone-200 dark:border-stone-700 px-2 py-1 whitespace-nowrap;
+  }
+  .evrak-item {
+    @apply flex-wrap;
+  }
+  .evrak-item .evrak-actions {
+    @apply ml-auto;
   }
 }
