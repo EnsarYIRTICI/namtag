@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, postJson } from "@/lib/api";
 import type { Evrak, Kunye, Me } from "@/lib/types";
 import EvrakPanel from "./EvrakPanel";
+import LoadingScreen from "./LoadingScreen";
 import PrintArea from "./PrintArea";
 import SearchPanel from "./SearchPanel";
 import SelectedPanel from "./SelectedPanel";
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [evraklar, setEvraklar] = useState<Evrak[]>([]);
   const [selected, setSelected] = useState<Kunye[]>([]);
   const [status, setStatus] = useState<Status>({ msg: "", cls: "" });
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     try {
@@ -33,14 +35,24 @@ export default function Dashboard() {
     }
   }, []);
 
-  useEffect(() => {
+  const loadMe = useCallback(() => {
+    setLoadError(null);
     api<Me>("/api/me")
       .then((m) => {
         setMe(m);
         return loadAll();
       })
-      .catch(() => {});
+      .catch((err: Error & { status?: number }) => {
+        // 401'de api() zaten giriş sayfasına yönlendiriyor
+        if (err.status === 401) return;
+        // fetch ağ hatasında İngilizce "Failed to fetch" döner; kullanıcıya Türkçe göster
+        setLoadError(err instanceof TypeError ? "Sunucuya ulaşılamıyor" : err.message || "Bilinmeyen hata");
+      });
   }, [loadAll]);
+
+  useEffect(() => {
+    loadMe();
+  }, [loadMe]);
 
   const addSelected = (rec: Kunye) =>
     setSelected((prev) => (prev.some((s) => s.kunyeNo === rec.kunyeNo) ? prev : [...prev, rec]));
@@ -66,7 +78,7 @@ export default function Dashboard() {
   }
 
   if (!me) {
-    return <div className="p-8 text-sm opacity-60">Yükleniyor...</div>;
+    return <LoadingScreen error={loadError ?? undefined} onRetry={loadMe} />;
   }
 
   return (

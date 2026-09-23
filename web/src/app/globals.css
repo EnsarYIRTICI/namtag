@@ -260,3 +260,47 @@
     print-color-adjust: exact;
   }
 }
+
+/* Yükleme ekranı iskeleti */
+@layer components {
+  .skel {
+    @apply rounded-md bg-stone-200 dark:bg-stone-800;
+    background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.45) 50%, transparent 100%);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: skel-sweep 1.4s ease-in-out infinite;
+  }
+  /* koyu temada parıltı daha sönük */
+  @media (prefers-color-scheme: dark) {
+    .skel {
+      background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.06) 50%, transparent 100%);
+    }
+  }
+  .skel-drop {
+    @apply h-[92px] rounded-[10px] border-2 border-dashed border-stone-200 dark:border-stone-700;
+  }
+  /* Künye kartını andıran yer tutucu: kesikli çerçeve, ortada QR karesi */
+  .skel-label {
+    @apply relative h-40 rounded-sm border border-dashed border-stone-300 dark:border-stone-700;
+  }
+  .skel-label::before {
+    content: "";
+    @apply absolute left-1/2 top-4 h-10 w-10 -translate-x-1/2 rounded-sm bg-stone-200 dark:bg-stone-800;
+  }
+  .skel-label::after {
+    content: "";
+    @apply absolute left-4 right-4 bottom-4 h-12 rounded-sm bg-stone-200/70 dark:bg-stone-800/70;
+  }
+  .retry-btn {
+    @apply px-4 py-2 rounded-lg bg-clay-500 hover:bg-clay-600 text-white text-sm font-semibold border-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clay-500;
+  }
+}
+
+@keyframes skel-sweep {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; }
+}
