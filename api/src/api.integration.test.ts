@@ -239,6 +239,18 @@ describe.skipIf(!DB)("API + PostgreSQL", () => {
     });
   });
 
+  describe("evrak listesi", () => {
+    it("künyelerin bildirim tarihine göre (yeniden eskiye) sıralanır, yükleme sırasına göre değil", async () => {
+      const yeni = await upload("sira-yeni.pdf", [kunye("SIRA ÜRÜN A", "20.09.2030 07:00:00")]);
+      const eski = await upload("sira-eski.pdf", [kunye("SIRA ÜRÜN B", "10.09.2030 07:00:00")]);
+      const orta = await upload("sira-orta.pdf", [kunye("SIRA ÜRÜN C", "15.09.2030 23:30:00")]);
+      const ev = (await h.call("GET", "/evraklar")).data as any[];
+      const sira = ev.filter((x) => [yeni.evrakId, eski.evrakId, orta.evrakId].includes(x.id));
+      expect(sira.map((x) => x.id)).toEqual([yeni.evrakId, orta.evrakId, eski.evrakId]);
+      expect(sira.map((x) => x.evrakTarihi)).toEqual(["2030-09-20", "2030-09-15", "2030-09-10"]);
+    });
+  });
+
   describe("bakım", () => {
     it("eski künyeleri siler, künyesiz kalan evrağı ve dosyasını temizler", async () => {
       const eski = kunye("ESKİ ÜRÜN", "01.01.2025 07:00:00");

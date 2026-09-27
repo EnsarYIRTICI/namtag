@@ -11,6 +11,12 @@ interface Props {
   onChanged: () => Promise<void>;
 }
 
+function fmtGun(g: string | null): string {
+  if (!g) return "tarihsiz";
+  const [y, m, d] = g.split("-");
+  return `${d}.${m}.${y}`;
+}
+
 function fmtSize(n: number | null): string {
   if (n == null) return "";
   if (n < 1024) return n + " B";
@@ -46,7 +52,8 @@ export default function EvrakPanel({ evraklar, setStatus, onChanged }: Props) {
             <div className="evrak-info">
               <b>{e.ad || "(evrak adı kayıtlı değil)"}</b>
               <span>
-                {e.adet} künye · {new Date(e.yuklemeZamani).toLocaleString("tr-TR")}
+                <b className="evrak-tarih">{fmtGun(e.evrakTarihi)}</b> · {e.adet} künye · yüklendi:{" "}
+                {new Date(e.yuklemeZamani).toLocaleString("tr-TR")}
                 {e.dosyaVar && e.boyut != null ? " · " + fmtSize(e.boyut) : ""}
               </span>
             </div>

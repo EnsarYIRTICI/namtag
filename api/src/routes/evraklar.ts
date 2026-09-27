@@ -66,10 +66,14 @@ export function evraklarRoutes(d: Deps): Router {
   r.get("/evraklar", async (_req, res) => {
     const rows = (
       await d.pool.query(
+        // Evrak tarihi: içindeki künyelerin en yeni bildirim günü (Türkiye saati). Liste buna göre sıralanır,
+        // yükleme zamanına göre değil; eski bir evrak sonradan yüklense de kendi gününün yerinde durur.
         `SELECT e.id, e.ad, e.boyut, (e.s3_key IS NOT NULL) AS "dosyaVar",
-                e.yukleme_zamani AS "yuklemeZamani", COUNT(k.kunye_no)::int AS adet
+                e.yukleme_zamani AS "yuklemeZamani", COUNT(k.kunye_no)::int AS adet,
+                to_char(max((k.bildirim_ts AT TIME ZONE 'Europe/Istanbul')::date), 'YYYY-MM-DD') AS "evrakTarihi"
            FROM evraklar e LEFT JOIN kunyeler k ON k.evrak_id = e.id
-          GROUP BY e.id ORDER BY e.yukleme_zamani DESC`,
+          GROUP BY e.id
+          ORDER BY max(k.bildirim_ts) DESC NULLS LAST, e.yukleme_zamani DESC`,
       )
     ).rows;
     res.json(rows.map((x) => ({ ...x, boyut: x.boyut == null ? null : Number(x.boyut) })));

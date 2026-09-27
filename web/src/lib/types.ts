@@ -43,6 +43,8 @@ export interface Evrak {
   boyut: number | null;
   dosyaVar: boolean;
   yuklemeZamani: string;
+  /** İçindeki künyelerin en yeni bildirim günü (YYYY-AA-GG); künyelerin tarihi yoksa null */
+  evrakTarihi: string | null;
 }
 
 export interface Me {

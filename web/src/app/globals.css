@@ -111,6 +111,9 @@
   .evrak-item .evrak-info span {
     @apply text-xs opacity-65;
   }
+  .evrak-item .evrak-info span b.evrak-tarih {
+    @apply inline font-semibold;
+  }
   .evrak-item .evrak-actions {
     @apply flex gap-1.5 flex-shrink-0;
   }
