@@ -47,8 +47,11 @@ export interface Evrak {
   evrakTarihi: string | null;
 }
 
+export type Rol = "yonetici" | "personel";
+
 export interface Me {
   username: string;
+  rol: Rol;
   version: string;
   commit: string;
   startedAt: string;
@@ -73,4 +76,46 @@ export interface Liste {
   sonYazdirma: string | null;
   kunyeNos: string[];
   bekleyenler: Bekleyen[];
+}
+
+/** Yönetim panelinden değiştirilebilen ayarlar (api/src/ayarlar.ts ile aynı) */
+export interface Ayarlar {
+  eksikGunPenceresi: number;
+  tazelikEskiGun: number;
+  tazelikCokEskiGun: number;
+  temizlikGun: number;
+}
+
+export interface Kullanici {
+  username: string;
+  rol: Rol;
+  aktif: boolean;
+  createdAt: string;
+  sonGiris: string | null;
+  acikOturum: number;
+}
+
+export interface IslemKaydi {
+  id: string;
+  zaman: string;
+  kullanici: string | null;
+  islem: string;
+  detay: Record<string, unknown>;
+  ip: string | null;
+}
+
+export interface Istatistik {
+  gun: number;
+  ozet: {
+    toplamKunye: number;
+    toplamEvrak: number;
+    toplamListe: number;
+    aktifKullanici: number;
+    sonKunye: number;
+    sonUrunCesidi: number;
+    sonEvrak: number;
+  };
+  gunluk: { gun: string; kunye: number; evrak: number }[];
+  enCokUrun: { urun: string; adet: number }[];
+  kullaniciYukleme: { kullanici: string; evrak: number; kunye: number }[];
 }

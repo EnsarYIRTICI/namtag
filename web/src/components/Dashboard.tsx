@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, postJson } from "@/lib/api";
-import type { Bekleyen, Eksikler, Evrak, Kunye, Liste, Me } from "@/lib/types";
+import { esikleriAyarla } from "@/lib/tazelik";
+import type { Ayarlar, Bekleyen, Eksikler, Evrak, Kunye, Liste, Me } from "@/lib/types";
 import Bildirimler from "./Bildirimler";
 import EvrakPanel from "./EvrakPanel";
 import ListelerPanel from "./ListelerPanel";
@@ -11,6 +12,7 @@ import PrintArea from "./PrintArea";
 import SearchPanel from "./SearchPanel";
 import SelectedPanel from "./SelectedPanel";
 import UploadPanel from "./UploadPanel";
+import UstBar from "./UstBar";
 
 export interface Status {
   msg: string;
@@ -72,8 +74,10 @@ export default function Dashboard() {
 
   const loadMe = useCallback(() => {
     setLoadError(null);
-    api<Me>("/api/me")
-      .then((m) => {
+    // Ayarlar (tazelik eşikleri) ilk çizimden önce gelmeli: işaretler doğru eşikle hesaplansın
+    Promise.all([api<Me>("/api/me"), api<Ayarlar>("/api/ayarlar")])
+      .then(([m, a]) => {
+        esikleriAyarla(a.tazelikEskiGun, a.tazelikCokEskiGun);
         setMe(m);
         return loadAll();
       })
@@ -218,25 +222,6 @@ export default function Dashboard() {
     }
   }
 
-  async function logout() {
-    try {
-      await fetch("/api/logout", { method: "POST" });
-    } catch {}
-    location.href = "/login";
-  }
-
-  async function cleanup() {
-    if (!confirm("6 aydan eski künye kayıtları arşivden silinsin mi? Bu işlem geri alınamaz.")) return;
-    setStatus({ msg: "Temizleniyor...", cls: "" });
-    try {
-      const data = await postJson<{ deleted: number }>("/api/kunyeler/cleanup", { days: 180 });
-      setStatus({ msg: data.deleted + " eski kayıt silindi.", cls: "ok" });
-      await loadAll();
-    } catch (e) {
-      setStatus({ msg: "Temizlik başarısız: " + errMsg(e), cls: "err" });
-    }
-  }
-
   if (!me) {
     return <LoadingScreen error={loadError ?? undefined} onRetry={loadMe} />;
   }
@@ -244,27 +229,7 @@ export default function Dashboard() {
   return (
     <>
       <div id="app-root">
-        <header>
-          <div className="wrap !p-0 flex justify-between items-start gap-3">
-            <div>
-              <h1>🏷️ Künye Arşivi</h1>
-              <p>Manav ürün künyelerini arşivleyin, arayın, A4 şablona ekleyip yazdırın.</p>
-            </div>
-            <div className="text-right text-[12.5px] whitespace-nowrap">
-              <span
-                className="opacity-50 mr-2"
-                title={`Sürüm ${me.version}${me.commit ? ", commit " + me.commit : ""}\nServis başlangıcı: ${new Date(me.startedAt).toLocaleString("tr-TR")}`}
-              >
-                v{me.version}
-                {me.commit ? " · " + me.commit : ""}
-              </span>
-              <span className="opacity-65">{me.username}</span>
-              <button type="button" onClick={logout} className="ml-2 bg-transparent border-0 p-0 cursor-pointer underline text-inherit font-[inherit]">
-                Çıkış
-              </button>
-            </div>
-          </div>
-        </header>
+        <UstBar me={me} sayfa="arsiv" />
 
         <Bildirimler
           eksikler={eksikler}
@@ -284,7 +249,7 @@ export default function Dashboard() {
                 <UploadPanel status={status} setStatus={setStatus} onChanged={loadAll} />
               </div>
               <div className="order-5 md:order-none">
-                <EvrakPanel evraklar={evraklar} setStatus={setStatus} onChanged={loadAll} />
+                <EvrakPanel evraklar={evraklar} silebilir={me.rol === "yonetici"} setStatus={setStatus} onChanged={loadAll} />
               </div>
               <div className="order-1 md:order-none">
                 <SearchPanel
@@ -319,11 +284,6 @@ export default function Dashboard() {
               </div>
               <div className="order-3 md:order-none">
                 <ListelerPanel listeler={listeler} aktifId={aktifListe?.id ?? null} onOpen={(l) => void openList(l)} onDelete={deleteList} />
-              </div>
-              <div className="order-6 md:order-none">
-                <button type="button" className="maint" onClick={cleanup}>
-                  Bakım: 6 aydan eski kayıtları temizle
-                </button>
               </div>
             </div>
           </div>

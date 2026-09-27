@@ -7,6 +7,8 @@ import EvrakViewer from "./EvrakViewer";
 
 interface Props {
   evraklar: Evrak[];
+  /** Evrak silme sadece yöneticiye açık */
+  silebilir: boolean;
   setStatus: (s: Status) => void;
   onChanged: () => Promise<void>;
 }
@@ -24,7 +26,7 @@ function fmtSize(n: number | null): string {
   return (n / 1024 / 1024).toFixed(1) + " MB";
 }
 
-export default function EvrakPanel({ evraklar, setStatus, onChanged }: Props) {
+export default function EvrakPanel({ evraklar, silebilir, setStatus, onChanged }: Props) {
   const [acik, setAcik] = useState<Evrak | null>(null);
 
   async function remove(e: Evrak) {
@@ -68,9 +70,11 @@ export default function EvrakPanel({ evraklar, setStatus, onChanged }: Props) {
                   İndir
                 </a>
               )}
-              <button type="button" className="del" onClick={() => void remove(e)}>
-                Evrağı sil
-              </button>
+              {silebilir && (
+                <button type="button" className="del" onClick={() => void remove(e)}>
+                  Evrağı sil
+                </button>
+              )}
             </div>
           </div>
         ))}

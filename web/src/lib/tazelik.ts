@@ -1,6 +1,15 @@
-/** Künye yaşı eşikleri (bildirim tarihinden bu yana geçen gün). Değiştirmek için burayı düzenleyin. */
-export const ESKI_GUN = 15;
-export const COK_ESKI_GUN = 30;
+/**
+ * Künye yaşı eşikleri (bildirim tarihinden bu yana geçen gün). Varsayılanlar burada; gerçek değerler açılışta
+ * sunucudaki ayarlardan gelir (Yönetim > Ayarlar) ve esikleriAyarla ile yazılır. `let` export'u canlı bağdır:
+ * içe aktaran bileşenler güncel değeri görür.
+ */
+export let ESKI_GUN = 15;
+export let COK_ESKI_GUN = 30;
+
+export function esikleriAyarla(eski: number, cokEski: number): void {
+  ESKI_GUN = eski;
+  COK_ESKI_GUN = cokEski;
+}
 
 export type YasSeviye = "eski" | "cok-eski" | null;
 

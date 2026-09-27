@@ -7,6 +7,7 @@ import {
   validateUsername,
 } from "../auth";
 import type { Deps } from "../deps";
+import { kaydet } from "../islemKaydi";
 
 /** Herkese açık uçlar: sağlık, giriş, çıkış. */
 export function publicRoutes(d: Deps): Router {
@@ -53,12 +54,21 @@ export function publicRoutes(d: Deps): Router {
       if (!user) {
         ipLimiter.fail(ipKey);
         userLimiter.fail(userKey);
+        await kaydet(d.pool, req, "giris_hatali", {}, username);
         res.status(401).json({ error: "Kullanıcı adı veya şifre hatalı." });
         return;
       }
       ipLimiter.clear(ipKey);
       userLimiter.clear(userKey);
+      // Şifre doğruysa pasif olduğunu söylemek bilgi sızdırmaz; kullanıcı neden giremediğini bilsin.
+      if (!user.aktif) {
+        await kaydet(d.pool, req, "giris_hatali", { neden: "pasif" }, username);
+        res.status(403).json({ error: "Hesabınız pasif. Yöneticiyle görüşün." });
+        return;
+      }
       const token = await d.auth.createSession(user.id);
+      await d.auth.markLogin(user.id);
+      await kaydet(d.pool, req, "giris", {}, user.username);
       res.cookie(COOKIE_NAME, token, { ...cookieOpts(req), maxAge: d.auth.absoluteMs });
       res.json({ ok: true, username: user.username });
     } catch (e) {
@@ -68,7 +78,10 @@ export function publicRoutes(d: Deps): Router {
   });
 
   r.post("/logout", async (req, res) => {
-    await d.auth.destroySession(parseCookies(req.headers.cookie)[COOKIE_NAME]);
+    const token = parseCookies(req.headers.cookie)[COOKIE_NAME];
+    const s = await d.auth.getSession(token);
+    if (s) await kaydet(d.pool, req, "cikis", {}, s.username);
+    await d.auth.destroySession(token);
     res.clearCookie(COOKIE_NAME, cookieOpts(req));
     res.json({ ok: true });
   });

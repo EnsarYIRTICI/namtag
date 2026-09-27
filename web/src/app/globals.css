@@ -584,3 +584,282 @@
     @apply border-stone-500/15 text-stone-500 dark:text-stone-400;
   }
 }
+
+/* Üst menü, pencereler, yönetim paneli */
+@layer components {
+  .ust-menu {
+    @apply flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[12.5px];
+  }
+  .ust-menu a,
+  .ust-menu button {
+    @apply bg-transparent border-0 p-0 cursor-pointer underline text-inherit font-[inherit] text-[12.5px] hover:text-clay-600 dark:hover:text-clay-400;
+  }
+  .ust-kullanici {
+    @apply opacity-80 inline-flex items-center gap-1.5;
+  }
+  .rol-rozet {
+    @apply rounded-full px-1.5 py-px text-[10.5px] font-semibold border;
+  }
+  .rol-rozet.yonetici {
+    @apply text-clay-600 dark:text-clay-400 border-clay-400 bg-clay-500/10;
+  }
+  .rol-rozet.personel {
+    @apply text-stone-600 dark:text-stone-300 border-stone-300 dark:border-stone-600;
+  }
+
+  .modal-arka {
+    @apply fixed inset-0 z-50 bg-black/55 flex items-start justify-center p-4 pt-[12vh];
+  }
+  .modal {
+    @apply w-full max-w-[400px] bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-4 shadow-2xl flex flex-col gap-3;
+  }
+  .modal-ust {
+    @apply flex items-center justify-between gap-2;
+  }
+  .modal-ust h2 {
+    @apply m-0 text-[15px] font-semibold;
+  }
+
+  .alan {
+    @apply flex flex-col gap-1 min-w-0 flex-1;
+  }
+  .alan.dar {
+    @apply flex-none min-w-[140px];
+  }
+  /* Telefonda form alanları alt alta, tam genişlik */
+  @media (max-width: 639px) {
+    .form-satir > .alan,
+    .form-satir > button,
+    .filtre-satir > .alan {
+      @apply basis-full flex-none w-full;
+    }
+  }
+  .alan > span {
+    @apply text-[12px] text-stone-500 dark:text-stone-400;
+  }
+  .alan input,
+  .alan select,
+  .tablo select,
+  .ayar input {
+    @apply px-3 py-2 text-base md:text-[13px] rounded-lg border border-stone-200 dark:border-stone-700 bg-cream-50 dark:bg-stone-800 text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-clay-500;
+  }
+  .form-satir,
+  .filtre-satir {
+    @apply flex flex-wrap items-end gap-2.5 mb-2;
+  }
+  .yardim {
+    @apply m-0 mb-2.5 text-[12.5px] text-stone-500 dark:text-stone-400;
+  }
+
+  .sekmeler {
+    @apply flex gap-1 mb-4 border-b border-stone-200 dark:border-stone-700 overflow-x-auto;
+  }
+  .sekmeler a {
+    @apply px-2.5 sm:px-3.5 py-2 text-[13.5px] font-semibold no-underline text-stone-500 dark:text-stone-400 border-b-2 border-transparent -mb-px whitespace-nowrap hover:text-stone-800 dark:hover:text-stone-100;
+  }
+  .sekmeler a.aktif {
+    @apply text-clay-600 dark:text-clay-400 border-clay-500;
+  }
+
+  .tablo-kap {
+    @apply overflow-x-auto -mx-1 px-1;
+  }
+  .tablo {
+    @apply w-full border-collapse text-[13px];
+  }
+  .tablo th {
+    @apply text-left font-semibold text-[12px] text-stone-500 dark:text-stone-400 px-2 py-1.5 border-b border-stone-200 dark:border-stone-700 whitespace-nowrap;
+  }
+  .tablo td {
+    @apply px-2 py-2 border-b border-stone-100 dark:border-stone-800 align-middle;
+  }
+  .tablo .sayi {
+    @apply text-right tabular-nums;
+  }
+  .tablo tr.pasif td {
+    @apply text-stone-400 dark:text-stone-500;
+  }
+  .tablo tr.onemli td.islem {
+    @apply font-semibold text-red-700 dark:text-red-400;
+  }
+  .tablo .ayrinti {
+    @apply text-stone-600 dark:text-stone-300 break-words min-w-[180px];
+  }
+  .tablo .ip {
+    @apply text-[11.5px] text-stone-400 whitespace-nowrap;
+  }
+  .tablo select {
+    @apply py-1;
+  }
+  .ben {
+    @apply text-[11.5px] text-stone-500;
+  }
+  .durum {
+    @apply inline-flex rounded-full px-2 py-px text-[11px] font-semibold border;
+  }
+  .durum.aktif {
+    @apply text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 bg-emerald-500/10;
+  }
+  .durum.pasif {
+    @apply text-stone-500 border-stone-300 dark:border-stone-600;
+  }
+  .satir-aksiyon {
+    @apply flex flex-wrap justify-end gap-1.5;
+  }
+  .satir-aksiyon button {
+    @apply bg-transparent border border-stone-300 dark:border-stone-600 rounded-md px-2.5 py-1 text-[12px] font-semibold cursor-pointer text-inherit whitespace-nowrap hover:bg-stone-500/10 disabled:opacity-35 disabled:cursor-default;
+  }
+  .satir-aksiyon .tehlike {
+    @apply text-red-600 dark:text-red-400 border-red-300 dark:border-red-800 hover:bg-red-600/10;
+  }
+  .metin-btn {
+    @apply bg-transparent border-0 underline text-[12.5px] text-stone-500 cursor-pointer p-0;
+  }
+  .tehlike-btn {
+    @apply px-3.5 py-2 rounded-lg border border-red-300 dark:border-red-800 bg-red-600/5 text-red-700 dark:text-red-400 text-[13px] font-semibold cursor-pointer hover:bg-red-600/10 disabled:opacity-50 disabled:cursor-default;
+  }
+
+  .ayar-liste {
+    @apply flex flex-col mb-3;
+  }
+  .ayar {
+    @apply flex items-center justify-between gap-4 py-3 border-b border-stone-100 dark:border-stone-800 last:border-b-0;
+  }
+  .ayar-metin b {
+    @apply block text-[13.5px] font-semibold;
+  }
+  .ayar-metin small {
+    @apply block text-[12px] text-stone-500 dark:text-stone-400 mt-0.5;
+  }
+  .ayar input {
+    @apply w-24 flex-shrink-0 text-right tabular-nums;
+  }
+
+  /* İstatistik */
+  .kutucuklar {
+    @apply grid grid-cols-2 md:grid-cols-4 gap-3 mb-[18px];
+  }
+  .kutu {
+    @apply bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl p-4 flex flex-col gap-1;
+  }
+  .kutu .etiket {
+    @apply text-[12px] text-stone-500 dark:text-stone-400;
+  }
+  .kutu .deger {
+    @apply text-[26px] font-semibold tabular-nums leading-tight;
+  }
+  .kutu .alt {
+    @apply text-[12px] text-stone-500 dark:text-stone-400;
+  }
+
+  .grafik {
+    @apply flex gap-2 h-[200px];
+  }
+  .eksen-y {
+    @apply flex flex-col justify-between items-end text-[11px] text-stone-400 tabular-nums -my-[7px] min-w-[28px];
+  }
+  .cizim {
+    @apply relative flex-1 min-w-0;
+  }
+  .izgara {
+    @apply absolute inset-0 flex flex-col justify-between pointer-events-none;
+  }
+  .izgara span {
+    @apply block border-t border-stone-100 dark:border-stone-800;
+  }
+  .izgara span:last-child {
+    @apply border-stone-300 dark:border-stone-600;
+  }
+  .sutunlar {
+    @apply absolute inset-0 flex items-end gap-[2px];
+  }
+  .sutun {
+    @apply flex-1 h-full flex items-end bg-transparent border-0 p-0 cursor-default focus-visible:outline-2 focus-visible:outline-clay-500 rounded-sm;
+  }
+  .sutun .dolgu {
+    @apply block w-full bg-clay-500 rounded-t-[4px] min-h-0 transition-colors;
+  }
+  .sutun.secili .dolgu {
+    @apply bg-clay-600 dark:bg-clay-400;
+  }
+  .sutun.secili {
+    @apply bg-stone-500/10;
+  }
+  .ipucu {
+    @apply absolute top-1 -translate-x-1/2 z-10 pointer-events-none bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg shadow-lg px-2.5 py-1.5 text-[12px] flex flex-col whitespace-nowrap;
+  }
+  .ipucu b {
+    @apply font-semibold;
+  }
+  .ipucu span {
+    @apply text-stone-600 dark:text-stone-300 tabular-nums;
+  }
+  .eksen-x {
+    @apply flex gap-[2px] ml-[36px] mt-1 text-[10.5px] text-stone-400;
+  }
+  .eksen-x span {
+    @apply flex-1 whitespace-nowrap overflow-visible;
+  }
+  .tablo-gorunum {
+    @apply mt-3 text-[12.5px];
+  }
+  .tablo-gorunum summary {
+    @apply cursor-pointer text-stone-500 dark:text-stone-400;
+  }
+
+  .yatay-cubuklar {
+    @apply list-none m-0 p-0 flex flex-col gap-2;
+  }
+  .yatay-cubuklar li {
+    @apply grid grid-cols-[minmax(90px,38%)_1fr_auto] items-center gap-2 text-[12.5px];
+  }
+  .yatay-cubuklar .ad {
+    @apply truncate;
+  }
+  .yatay-cubuklar .cubuk-kap {
+    @apply block h-3;
+  }
+  .yatay-cubuklar .cubuk {
+    @apply block h-full bg-clay-500 rounded-r-[4px] min-w-[2px];
+  }
+  .yatay-cubuklar .deger {
+    @apply tabular-nums text-stone-600 dark:text-stone-300 min-w-[28px] text-right;
+  }
+}
+
+/* Telefonda tablolar kart görünümü: her satır bir kart, hücreler "etiket: değer" */
+@media (max-width: 767px) {
+  @layer components {
+    .tablo.kartli thead {
+      @apply hidden;
+    }
+    .tablo.kartli,
+    .tablo.kartli tbody,
+    .tablo.kartli tr,
+    .tablo.kartli td {
+      @apply block w-full;
+    }
+    .tablo.kartli tr {
+      @apply border border-stone-200 dark:border-stone-700 rounded-[9px] px-3 py-2 mb-2;
+    }
+    .tablo.kartli td {
+      @apply border-0 px-0 py-1 flex items-center justify-between gap-3 text-right min-w-0 whitespace-normal;
+    }
+    .tablo.kartli td[data-etiket]::before {
+      content: attr(data-etiket);
+      @apply text-[12px] text-stone-500 dark:text-stone-400 text-left flex-shrink-0;
+    }
+    .tablo.kartli td.kart-baslik {
+      @apply justify-start text-[14px];
+    }
+    .tablo.kartli td.kart-aksiyon .satir-aksiyon {
+      @apply justify-start pt-1;
+    }
+    .tablo.kartli td.ayrinti {
+      @apply min-w-0;
+    }
+    .tablo.kartli td.ayrinti:empty {
+      @apply hidden;
+    }
+  }
+}

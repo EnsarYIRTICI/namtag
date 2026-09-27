@@ -104,9 +104,22 @@ export class FailLimiter {
 
 // ---------- Kullanıcı / oturum servisi ----------
 
+export type Rol = "yonetici" | "personel";
+export const ROLLER: readonly Rol[] = ["yonetici", "personel"];
+
 export interface SessionUser {
   userId: number;
   username: string;
+  rol: Rol;
+}
+
+export interface KullaniciSatiri {
+  username: string;
+  rol: Rol;
+  aktif: boolean;
+  createdAt: Date;
+  sonGiris: Date | null;
+  acikOturum: number;
 }
 export interface AuthOptions {
   idleMs: number;
@@ -136,9 +149,29 @@ export class Auth {
     return r.rows[0].n as number;
   }
 
-  async createUser(username: string, password: string): Promise<void> {
+  async createUser(username: string, password: string, rol: Rol = "personel"): Promise<void> {
     const hash = await hashPassword(password);
-    await this.pool.query("INSERT INTO users (username, password_hash) VALUES ($1, $2)", [username, hash]);
+    await this.pool.query("INSERT INTO users (username, password_hash, rol) VALUES ($1, $2, $3)", [username, hash, rol]);
+  }
+
+  /** Aktif yönetici sayısı (son yöneticiyi kaybetmeyi önlemek için). */
+  async activeAdminCount(): Promise<number> {
+    const r = await this.pool.query("SELECT COUNT(*)::int AS n FROM users WHERE rol = 'yonetici' AND aktif");
+    return r.rows[0].n as number;
+  }
+
+  async setRole(username: string, rol: Rol): Promise<boolean> {
+    const r = await this.pool.query("UPDATE users SET rol = $1 WHERE username = $2", [rol, username]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  /** Kullanıcının tüm açık oturumlarını kapatır; kapatılan oturum sayısını döner. */
+  async destroyUserSessions(username: string): Promise<number> {
+    const r = await this.pool.query(
+      "DELETE FROM sessions WHERE user_id = (SELECT id FROM users WHERE username = $1)",
+      [username],
+    );
+    return r.rowCount ?? 0;
   }
 
   /** Şifreyi değiştirir ve kullanıcının tüm açık oturumlarını kapatır. false: kullanıcı yok. */
@@ -173,17 +206,36 @@ export class Auth {
     return (r.rowCount ?? 0) > 0;
   }
 
-  async listUsers(): Promise<{ username: string; created_at: Date }[]> {
-    const r = await this.pool.query("SELECT username, created_at FROM users ORDER BY id");
+  async listUsers(): Promise<KullaniciSatiri[]> {
+    const r = await this.pool.query(
+      `SELECT u.username, u.rol, u.aktif, u.created_at AS "createdAt", u.son_giris AS "sonGiris",
+              (SELECT COUNT(*)::int FROM sessions s WHERE s.user_id = u.id AND s.expires_at > $1) AS "acikOturum"
+         FROM users u ORDER BY u.id`,
+      [Date.now()],
+    );
     return r.rows;
   }
 
   /** Sadece giriş denemesi için: kullanıcıyı bul, şifreyi doğrula (sabit süre). */
-  async authenticate(username: string, password: string): Promise<{ id: number; username: string } | null> {
-    const r = await this.pool.query("SELECT id, username, password_hash FROM users WHERE username = $1", [username]);
-    const user = r.rows[0] as { id: number; username: string; password_hash: string } | undefined;
+  async authenticate(
+    username: string,
+    password: string,
+  ): Promise<{ id: number; username: string; aktif: boolean } | null> {
+    const r = await this.pool.query("SELECT id, username, password_hash, aktif FROM users WHERE username = $1", [username]);
+    const user = r.rows[0] as { id: number; username: string; password_hash: string; aktif: boolean } | undefined;
     const ok = await verifyPassword(password, user ? user.password_hash : await getDummyHash());
-    return user && ok ? { id: user.id, username: user.username } : null;
+    return user && ok ? { id: user.id, username: user.username, aktif: user.aktif } : null;
+  }
+
+  /** Sadece şifre doğrulama (kendi şifresini değiştirirken mevcut şifre kontrolü). */
+  async checkPassword(userId: number, password: string): Promise<boolean> {
+    const r = await this.pool.query("SELECT password_hash FROM users WHERE id = $1", [userId]);
+    const hash = r.rows[0]?.password_hash as string | undefined;
+    return verifyPassword(password, hash ?? (await getDummyHash()));
+  }
+
+  async markLogin(userId: number): Promise<void> {
+    await this.pool.query("UPDATE users SET son_giris = now() WHERE id = $1", [userId]);
   }
 
   async createSession(userId: number): Promise<string> {
@@ -200,7 +252,7 @@ export class Auth {
     if (!token || token.length > 100) return null;
     const id = sha256(token);
     const r = await this.pool.query(
-      `SELECT s.user_id, s.created_at, s.last_seen, s.expires_at, u.username
+      `SELECT s.user_id, s.created_at, s.last_seen, s.expires_at, u.username, u.rol, u.aktif
          FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = $1`,
       [id],
     );
@@ -210,7 +262,7 @@ export class Auth {
     const lastSeen = Number(s.last_seen);
     const expiresAt = Number(s.expires_at);
     const now = Date.now();
-    if (expiresAt < now || createdAt + this.opts.absoluteMs < now) {
+    if (expiresAt < now || createdAt + this.opts.absoluteMs < now || !s.aktif) {
       await this.pool.query("DELETE FROM sessions WHERE id = $1", [id]);
       return null;
     }
@@ -221,7 +273,7 @@ export class Auth {
         id,
       ]);
     }
-    return { userId: s.user_id as number, username: s.username as string };
+    return { userId: s.user_id as number, username: s.username as string, rol: s.rol as Rol };
   }
 
   async destroySession(token: string | undefined): Promise<void> {

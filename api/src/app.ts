@@ -1,12 +1,15 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
-import { COOKIE_NAME, parseCookies } from "./auth";
+import { COOKIE_NAME, parseCookies, validatePassword } from "./auth";
+import { ayarlariOku } from "./ayarlar";
+import { kaydet } from "./islemKaydi";
 import type { Deps } from "./deps";
 import { eksiklerRoutes } from "./routes/eksikler";
 import { evraklarRoutes } from "./routes/evraklar";
 import { kunyelerRoutes } from "./routes/kunyeler";
 import { listelerRoutes } from "./routes/listeler";
 import { publicRoutes } from "./routes/session";
+import { yonetimRoutes } from "./routes/yonetim";
 
 export function buildApp(d: Deps) {
   const app = express();
@@ -58,12 +61,48 @@ export function buildApp(d: Deps) {
     next();
   });
 
-  api.get("/me", (req, res) => res.json({ username: req.user!.username, ...d.version }));
+  api.get("/me", (req, res) => res.json({ username: req.user!.username, rol: req.user!.rol, ...d.version }));
   api.use(express.json({ limit: "1mb" }));
+
+  // Kendi şifresini değiştirme: mevcut şifre doğrulanır, diğer cihazlardaki oturumlar kapanır,
+  // bu cihazda yeni oturum açılır (kullanıcı çıkış yapmak zorunda kalmaz).
+  api.post("/me/sifre", async (req, res) => {
+    const { mevcut, yeni } = (req.body ?? {}) as { mevcut?: unknown; yeni?: unknown };
+    const perr = validatePassword(yeni);
+    if (perr) {
+      res.status(400).json({ error: perr });
+      return;
+    }
+    if (typeof mevcut !== "string" || !(await d.auth.checkPassword(req.user!.userId, mevcut))) {
+      res.status(400).json({ error: "Mevcut şifre hatalı." });
+      return;
+    }
+    if (mevcut === yeni) {
+      res.status(400).json({ error: "Yeni şifre mevcut şifreyle aynı olamaz." });
+      return;
+    }
+    await d.auth.setPassword(req.user!.username, yeni as string);
+    const token = await d.auth.createSession(req.user!.userId);
+    res.cookie(COOKIE_NAME, token, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: req.secure,
+      path: "/",
+      maxAge: d.auth.absoluteMs,
+    });
+    await kaydet(d.pool, req, "sifre_degistir");
+    res.json({ ok: true });
+  });
+
+  // Arayüzün ihtiyaç duyduğu ayarlar (tazelik eşikleri vb.) herkes okuyabilir; değiştirmek yöneticinin işi.
+  api.get("/ayarlar", async (_req, res) => {
+    res.json(await ayarlariOku(d.pool));
+  });
   api.use(kunyelerRoutes(d));
   api.use(evraklarRoutes(d));
   api.use(listelerRoutes(d));
   api.use(eksiklerRoutes(d));
+  api.use(yonetimRoutes(d));
   api.use((_req, res) => res.status(404).json({ error: "Bulunamadı." }));
 
   app.use("/api", api);

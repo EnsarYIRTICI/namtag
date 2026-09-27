@@ -53,34 +53,48 @@ export async function startHarness(databaseUrl: string) {
   });
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
 
-  await auth.createUser("tester", "test-sifresi-123");
-  const login = await fetch(base + "/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: "tester", password: "test-sifresi-123" }),
-  });
-  if (!login.ok) throw new Error("Test girişi başarısız: " + login.status);
-  const cookie = (login.headers.get("set-cookie") ?? "").split(";")[0]!;
+  await auth.createUser("tester", "test-sifresi-123", "yonetici");
 
-  /** Oturumlu istek; JSON gövdeyi kendisi serileştirir. */
-  async function call<T = any>(method: string, path: string, body?: unknown, extraHeaders: Record<string, string> = {}) {
-    const isForm = body instanceof FormData;
-    const res = await fetch(base + path, {
-      method,
-      headers: {
-        cookie,
-        origin: ORIGIN,
-        ...(body !== undefined && !isForm ? { "Content-Type": "application/json" } : {}),
-        ...extraHeaders,
-      },
-      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+  /** Giriş yapar, oturum çerezini döner (başarısızsa hata fırlatır). */
+  async function login(username: string, password: string): Promise<string> {
+    const res = await fetch(base + "/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
     });
-    const text = await res.text();
-    let data: any = text;
-    try {
-      data = JSON.parse(text);
-    } catch {}
-    return { status: res.status, data: data as T, headers: res.headers };
+    if (!res.ok) throw new Error(`Test girişi başarısız (${username}): ${res.status}`);
+    return (res.headers.get("set-cookie") ?? "").split(";")[0]!;
+  }
+
+  /** Verilen oturumla istek atan fonksiyon; JSON gövdeyi kendisi serileştirir. */
+  function caller(cookie: string) {
+    return async function call<T = any>(method: string, path: string, body?: unknown, extraHeaders: Record<string, string> = {}) {
+      const isForm = body instanceof FormData;
+      const res = await fetch(base + path, {
+        method,
+        headers: {
+          cookie,
+          origin: ORIGIN,
+          ...(body !== undefined && !isForm ? { "Content-Type": "application/json" } : {}),
+          ...extraHeaders,
+        },
+        body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+      });
+      const text = await res.text();
+      let data: any = text;
+      try {
+        data = JSON.parse(text);
+      } catch {}
+      return { status: res.status, data: data as T, headers: res.headers };
+    };
+  }
+
+  /** Yönetici ("tester") oturumuyla istek. */
+  const call = caller(await login("tester", "test-sifresi-123"));
+
+  /** Başka bir kullanıcı olarak giriş yapıp o oturumla istek atan fonksiyon döner. */
+  async function loginAs(username: string, password: string) {
+    return caller(await login(username, password));
   }
 
   async function close() {
@@ -90,7 +104,7 @@ export async function startHarness(databaseUrl: string) {
     await admin.end();
   }
 
-  return { base, pool, store, call, close };
+  return { base, pool, auth, store, call, login, loginAs, close };
 }
 
 export type Harness = Awaited<ReturnType<typeof startHarness>>;

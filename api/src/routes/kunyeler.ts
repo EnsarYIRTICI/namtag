@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
+import { ayarlariOku } from "../ayarlar";
 import type { Deps } from "../deps";
+import { kaydet } from "../islemKaydi";
 import type { KunyeRow } from "../types";
 import { pruneEmptyEvraklar } from "./prune";
+import { requireAdmin } from "./yonetim";
 
 /**
  * Künye alanları + tazelik bilgisi. Sorgularda kunyeler tablosu "k" takma adıyla kullanılmalı ve
@@ -46,7 +49,7 @@ const bulBody = z.object({
   kunyeNos: z.array(z.string().trim().max(64)).max(500),
 });
 
-const cleanupBody = z.object({ days: z.coerce.number().int().min(1).max(3650).default(180) });
+const cleanupBody = z.object({ days: z.coerce.number().int().min(1).max(3650).optional() });
 
 export function kunyelerRoutes(d: Deps): Router {
   const r = Router();
@@ -104,26 +107,28 @@ export function kunyelerRoutes(d: Deps): Router {
     res.json(rows);
   });
 
-  r.delete("/kunyeler/:kunyeNo", async (req, res) => {
+  r.delete("/kunyeler/:kunyeNo", requireAdmin, async (req, res) => {
     const del = await d.pool.query("DELETE FROM kunyeler WHERE kunye_no = $1", [req.params.kunyeNo]);
     if (!del.rowCount) {
       res.status(404).json({ error: "Künye bulunamadı." });
       return;
     }
     await pruneEmptyEvraklar(d);
+    await kaydet(d.pool, req, "kunye_sil", { kunyeNo: req.params.kunyeNo });
     res.json({ ok: true });
   });
 
-  // Bildirim tarihi N günden eski kayıtları siler (tarihi okunamayanlara dokunmaz).
-  r.post("/kunyeler/cleanup", async (req, res) => {
+  // Bildirim tarihi N günden eski kayıtları siler (tarihi okunamayanlara dokunmaz). N verilmezse ayarlardaki değer.
+  r.post("/kunyeler/cleanup", requireAdmin, async (req, res) => {
     const parsed = cleanupBody.safeParse(req.body ?? {});
-    const days = parsed.success ? parsed.data.days : 180;
+    const days = (parsed.success ? parsed.data.days : undefined) ?? (await ayarlariOku(d.pool)).temizlikGun;
     const del = await d.pool.query(
       "DELETE FROM kunyeler WHERE bildirim_ts IS NOT NULL AND bildirim_ts < now() - make_interval(days => $1)",
       [days],
     );
     await pruneEmptyEvraklar(d);
-    res.json({ deleted: del.rowCount ?? 0 });
+    await kaydet(d.pool, req, "temizlik", { gun: days, silinen: del.rowCount ?? 0 });
+    res.json({ deleted: del.rowCount ?? 0, days });
   });
 
   return r;

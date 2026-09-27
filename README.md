@@ -21,22 +21,45 @@ docker compose logs -f api
 
 Host nginx'e `nginx/kunye.conf` dosyasını ekleyin (alan adını değiştirin), `nginx -t && systemctl reload nginx`, ardından `certbot --nginx -d ...`. HTTPS'siz internete açmayın.
 
-İlk kullanıcı `.env`'deki `ADMIN_USERNAME` / `ADMIN_PASSWORD` ile, hiç kullanıcı yokken ilk açılışta oluşur (sonra `ADMIN_PASSWORD` satırını silin).
+İlk kullanıcı `.env`'deki `ADMIN_USERNAME` / `ADMIN_PASSWORD` ile, hiç kullanıcı yokken ilk açılışta **yönetici** olarak oluşur (sonra `ADMIN_PASSWORD` satırını silin).
 
-## Kullanıcı yönetimi
+## Roller ve yönetim paneli
+
+İki rol vardır:
+
+| | Yönetici | Personel |
+|---|:---:|:---:|
+| Evrak yükleme, arama, liste hazırlama, yazdırma | ✓ | ✓ |
+| "Alım yapılmadı" işaretleme, liste silme | ✓ | ✓ |
+| Kendi şifresini değiştirme (üstteki "Şifremi değiştir") | ✓ | ✓ |
+| Evrak / künye silme | ✓ | |
+| Bakım temizliği | ✓ | |
+| Yönetim paneli (`/yonetim`) | ✓ | |
+
+Yönetim paneli (sağ üstte **Yönetim** bağlantısı, sadece yöneticiye görünür):
+
+- **Kullanıcılar:** ekle, rolünü değiştir, pasifleştir (açık oturumları kapanır, giriş yapamaz), şifre sıfırla, açık oturumlarını kapat, sil. Kendi hesabınızı değiştiremez/silemezsiniz; en az bir aktif yönetici her zaman kalır.
+- **İşlem kaydı:** giriş/çıkış, hatalı giriş, evrak yükleme/silme, temizlik, kullanıcı ve ayar değişiklikleri; kullanıcı ve işleme göre süzülür. Kayıtlar 1 yıl saklanır. Arama ve yazdırma kaydedilmez.
+- **İstatistikler:** son 30 günde günlük bildirilen künye, en çok künyesi gelen ürünler, kullanıcıya göre yüklemeler.
+- **Ayarlar:** eksik evrak penceresi, tazelik uyarı eşikleri (sarı/kırmızı), temizlik süresi. Bakım temizliği de buradadır.
+
+**v2.4'ten yükseltme:** Migrasyon, mevcut kullanıcılardan ilk oluşturulanı (genelde `ADMIN_USERNAME`) yönetici, diğerlerini personel yapar. Farklı bir dağılım gerekiyorsa panelden ya da aşağıdaki `user role` komutuyla düzeltin. Aktif yönetici kalmazsa API açılışta uyarı yazar.
+
+## Komut satırından kullanıcı yönetimi
+
+Panel kullanılamadığında (örn. yönetici şifresi unutulduysa):
 
 ```bash
-docker compose exec api node dist/cli.js user add <kullanici>      # şifre ekranda görünmez
+docker compose exec api node dist/cli.js user add <kullanici> [--yonetici]   # şifre ekranda görünmez; varsayılan personel
+docker compose exec api node dist/cli.js user role <kullanici> <yonetici|personel>
 docker compose exec api node dist/cli.js user passwd <kullanici>   # açık oturumlar kapanır
 docker compose exec api node dist/cli.js user delete <kullanici>
 docker compose exec api node dist/cli.js user list
 ```
 
-Rol/yetki ayrımı yoktur: giriş yapan herkes yükleyebilir, silebilir, bakım temizliği çalıştırabilir.
-
 ## Kayıtlı listeler
 
-Seçili künyeler "Listeyi kaydet" ile adlandırılıp sunucuya kaydedilir; aynı hesapla başka bir cihazdan (örn. telefondan hazırlayıp bilgisayardan) "Kayıtlı Listeler" panelinden açılıp yazdırılabilir. Açık liste değiştirilmeden yazdırılırsa "Yazdırıldı" olarak işaretlenir. Bir künye arşivden silinirse (evrak silme ya da 6 ay temizliği) listelerden de düşer. Telefonda panel sırası aramayı öne alacak şekilde değişir.
+Seçili künyeler "Listeyi kaydet" ile adlandırılıp sunucuya kaydedilir; aynı hesapla başka bir cihazdan (örn. telefondan hazırlayıp bilgisayardan) "Kayıtlı Listeler" panelinden açılıp yazdırılabilir. Açık liste değiştirilmeden yazdırılırsa "Yazdırıldı" olarak işaretlenir. Bir künye arşivden silinirse (evrak silme ya da bakım temizliği) listelerden de düşer. Telefonda panel sırası aramayı öne alacak şekilde değişir.
 
 ### Bekleyen ürünler
 
@@ -44,9 +67,9 @@ Aramada künyesi bulunamayan ürün "bekleyen olarak ekle" ile listeye not düş
 
 ### Künye tazeliği ve eksik evrak uyarısı
 
-Arama sonuçlarında ve seçili künyelerde, ürünün arşivdeki en yeni künyesi "✓ En yeni" ile işaretlenir; daha yenisi varsa tarihi gösterilir. Bildirimi 15 günden eski künye sarı, 30 günden eski kırmızı uyarıyla gösterilir (eşikler: `web/src/lib/tazelik.ts`). Yaş bildirim tarihine göre hesaplanır, üretim tarihine göre değil.
+Arama sonuçlarında ve seçili künyelerde, ürünün arşivdeki en yeni künyesi "✓ En yeni" ile işaretlenir; daha yenisi varsa tarihi gösterilir. Bildirimi 15 günden eski künye sarı, 30 günden eski kırmızı uyarıyla gösterilir (eşikler Yönetim > Ayarlar'dan değişir). Yaş bildirim tarihine göre hesaplanır, üretim tarihine göre değil.
 
-Son 30 günde (bugün hariç, sistemdeki ilk künyeden önceki günler sayılmaz) hiçbir künyesi olmayan günler "evrakı yüklenmemiş" olarak bildirilir. Alım yapılmayan günler "Alım yapılmadı" ile işaretlenip uyarıdan çıkarılabilir, işaret geri alınabilir.
+Son 30 günde (süre Yönetim > Ayarlar'dan değişir; bugün hariç, sistemdeki ilk künyeden önceki günler sayılmaz) hiçbir künyesi olmayan günler "evrakı yüklenmemiş" olarak bildirilir. Alım yapılmayan günler "Alım yapılmadı" ile işaretlenip uyarıdan çıkarılabilir, işaret geri alınabilir.
 
 Arama sunucuda yapılır (Türkçe harf ve büyük/küçük harf duyarsız, en yeni bildirim önce, en fazla 20 sonuç); arayüz açılışta tüm arşivi indirmez.
 

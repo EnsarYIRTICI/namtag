@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { PoolClient } from "pg";
 import { z } from "zod";
 import type { Deps } from "../deps";
+import { kaydet } from "../islemKaydi";
 
 const MAX_KUNYE = 500;
 const MAX_BEKLEYEN = 100;
@@ -237,11 +238,12 @@ export function listelerRoutes(d: Deps): Router {
       res.status(400).json({ error: "Geçersiz liste kimliği." });
       return;
     }
-    const del = await d.pool.query("DELETE FROM listeler WHERE id = $1", [id.data]);
+    const del = await d.pool.query("DELETE FROM listeler WHERE id = $1 RETURNING ad", [id.data]);
     if (!del.rowCount) {
       res.status(404).json({ error: "Liste bulunamadı." });
       return;
     }
+    await kaydet(d.pool, req, "liste_sil", { listeId: id.data, ad: del.rows[0].ad });
     res.json({ ok: true });
   });
 

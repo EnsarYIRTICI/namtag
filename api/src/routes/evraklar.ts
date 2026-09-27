@@ -4,7 +4,9 @@ import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 import type { Deps } from "../deps";
+import { kaydet } from "../islemKaydi";
 import { parseBildirimTs, safeFileName } from "../util";
+import { requireAdmin } from "./yonetim";
 
 const KUNYE_NO_RE = /^\d{8,}$/;
 
@@ -202,6 +204,7 @@ export function evraklarRoutes(d: Deps): Router {
       await d.store.put(key, file.buffer, EXT_MIME[ext]!);
       stored = true;
       await client.query("COMMIT");
+      await kaydet(d.pool, req, "evrak_yukle", { evrakId, ad, eklenen: addedNos.size, atlanan: skippedNos.length });
       res.json({
         evrakId,
         added: addedNos.size,
@@ -258,7 +261,7 @@ export function evraklarRoutes(d: Deps): Router {
   });
 
   // Evrağı ve ondan gelen tüm künyeleri sil (orijinal dosya da silinir).
-  r.delete("/evraklar/:id", async (req, res) => {
+  r.delete("/evraklar/:id", requireAdmin, async (req, res) => {
     const id = uuidSchema.safeParse(req.params.id);
     if (!id.success) {
       res.status(400).json({ error: "Geçersiz evrak kimliği." });
@@ -268,7 +271,7 @@ export function evraklarRoutes(d: Deps): Router {
     try {
       await client.query("BEGIN");
       const cnt = await client.query("SELECT COUNT(*)::int AS n FROM kunyeler WHERE evrak_id = $1", [id.data]);
-      const del = await client.query("DELETE FROM evraklar WHERE id = $1 RETURNING s3_key", [id.data]);
+      const del = await client.query("DELETE FROM evraklar WHERE id = $1 RETURNING s3_key, ad", [id.data]);
       if (!del.rowCount) {
         await client.query("ROLLBACK");
         res.status(404).json({ error: "Evrak bulunamadı." });
@@ -277,6 +280,7 @@ export function evraklarRoutes(d: Deps): Router {
       await client.query("COMMIT");
       const key = del.rows[0].s3_key as string | null;
       if (key) await d.store.delete(key).catch((e) => console.warn("Dosya silinemedi:", key, e.message));
+      await kaydet(d.pool, req, "evrak_sil", { evrakId: id.data, ad: del.rows[0].ad, silinenKunye: cnt.rows[0].n });
       res.json({ deleted: cnt.rows[0].n as number });
     } catch (e) {
       await client.query("ROLLBACK").catch(() => {});

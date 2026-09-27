@@ -119,6 +119,38 @@ const MIGRATIONS: { id: string; sql: string }[] = [
       );
     `,
   },
+  {
+    id: "005_yonetim",
+    sql: `
+      -- Roller: yonetici her şeyi yapar; personel yükler, arar, listeler, yazdırır (silme/bakım/yönetim yok).
+      ALTER TABLE users ADD COLUMN rol TEXT NOT NULL DEFAULT 'personel' CHECK (rol IN ('yonetici', 'personel'));
+      ALTER TABLE users ADD COLUMN aktif BOOLEAN NOT NULL DEFAULT true;
+      ALTER TABLE users ADD COLUMN son_giris TIMESTAMPTZ;
+      -- Mevcut kurulumda ilk oluşturulan kullanıcı (ADMIN_USERNAME) yönetici olur, diğerleri personel.
+      UPDATE users SET rol = 'yonetici' WHERE id = (SELECT min(id) FROM users);
+
+      -- Kim, ne zaman, ne yaptı. Kullanıcı silinse de kayıt kalır (ad metin olarak tutulur).
+      CREATE TABLE islem_kaydi (
+        id        BIGSERIAL PRIMARY KEY,
+        zaman     TIMESTAMPTZ NOT NULL DEFAULT now(),
+        kullanici TEXT,
+        islem     TEXT NOT NULL,
+        detay     JSONB NOT NULL DEFAULT '{}'::jsonb,
+        ip        TEXT
+      );
+      CREATE INDEX idx_islem_kaydi_zaman ON islem_kaydi(zaman DESC);
+      CREATE INDEX idx_islem_kaydi_kullanici ON islem_kaydi(kullanici, id DESC);
+      CREATE INDEX idx_islem_kaydi_islem ON islem_kaydi(islem, id DESC);
+
+      -- Panelden değiştirilebilen ayarlar (tanımsız anahtar = varsayılan değer, bkz. ayarlar.ts)
+      CREATE TABLE ayarlar (
+        anahtar     TEXT PRIMARY KEY,
+        deger       JSONB NOT NULL,
+        guncelleyen TEXT,
+        guncelleme  TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `,
+  },
 ];
 
 export async function migrate(pool: Pool): Promise<void> {

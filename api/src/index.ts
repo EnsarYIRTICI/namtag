@@ -4,6 +4,7 @@ import { buildApp } from "./app";
 import { Auth, validatePassword, validateUsername, normalizeUsername } from "./auth";
 import { loadConfig } from "./config";
 import { createPool, migrate } from "./db";
+import { eskiKayitlariSil } from "./islemKaydi";
 import { S3Store } from "./storage";
 
 async function main() {
@@ -24,8 +25,8 @@ async function main() {
     const u = normalizeUsername(config.ADMIN_USERNAME);
     const err = validatePassword(config.ADMIN_PASSWORD);
     if (config.ADMIN_USERNAME && config.ADMIN_PASSWORD && validateUsername(u) && !err) {
-      await auth.createUser(u, config.ADMIN_PASSWORD);
-      console.log(`İlk kullanıcı oluşturuldu: ${u} (ADMIN_PASSWORD değişkenini .env'den silebilirsiniz)`);
+      await auth.createUser(u, config.ADMIN_PASSWORD, "yonetici");
+      console.log(`İlk yönetici oluşturuldu: ${u} (ADMIN_PASSWORD değişkenini .env'den silebilirsiniz)`);
     } else {
       console.warn(
         "UYARI: Hiç kullanıcı yok, kimse giriş yapamaz. .env içinde ADMIN_USERNAME/ADMIN_PASSWORD verin " +
@@ -34,6 +35,17 @@ async function main() {
       );
     }
   }
+
+  if ((await auth.userCount()) > 0 && (await auth.activeAdminCount()) === 0) {
+    console.warn(
+      "UYARI: Aktif yönetici yok, yönetim paneline kimse giremez. " +
+        "Bir kullanıcıyı yönetici yapın: docker compose exec api node dist/cli.js user role <kullanici> yonetici",
+    );
+  }
+
+  // İşlem kaydı sınırsız büyümesin: 1 yıldan eski kayıtlar saatte bir silinir.
+  const kayitTemizlik = setInterval(() => void eskiKayitlariSil(pool).catch(() => {}), 3600 * 1000);
+  kayitTemizlik.unref();
 
   const store = new S3Store(config);
   await store.ensureBucket();
@@ -49,6 +61,7 @@ async function main() {
     console.log(`${sig} alındı, kapatılıyor...`);
     server.close(async () => {
       auth.dispose();
+      clearInterval(kayitTemizlik);
       await pool.end().catch(() => {});
       process.exit(0);
     });

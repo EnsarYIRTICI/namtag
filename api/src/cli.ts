@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // Yönetim komutları (sunucuda / container içinde):
-//   node dist/cli.js user add <kullanici>       yeni kullanıcı (şifre ekranda görünmez)
+//   node dist/cli.js user add <kullanici> [--yonetici]  yeni kullanıcı (şifre ekranda görünmez; varsayılan rol personel)
+//   node dist/cli.js user role <kullanici> <yonetici|personel>  rolü değiştir
 //   node dist/cli.js user passwd <kullanici>    şifre değiştir (açık oturumlar kapanır)
 //   node dist/cli.js user delete <kullanici>    kullanıcıyı sil
 //   node dist/cli.js user list                  kullanıcıları listele
 //   node dist/cli.js import-legacy <kunyeler.json> [users.json] [--force]
 //                                               eski SQLite sürümünden veri aktar (README'ye bakın)
 import fs from "node:fs";
-import { Auth, normalizeUsername, validatePassword, validateUsername } from "./auth";
+import { Auth, ROLLER, normalizeUsername, validatePassword, validateUsername, type Rol } from "./auth";
 import { createPool, migrate } from "./db";
 import { parseBildirimTs } from "./util";
 
@@ -69,7 +70,8 @@ function needUser(arg: string | undefined): string {
 }
 
 const USAGE = `Kullanım:
-  node dist/cli.js user add <kullanici>
+  node dist/cli.js user add <kullanici> [--yonetici]
+  node dist/cli.js user role <kullanici> <yonetici|personel>
   node dist/cli.js user passwd <kullanici>
   node dist/cli.js user delete <kullanici>
   node dist/cli.js user list
@@ -162,7 +164,8 @@ async function importLegacy(pool: ReturnType<typeof createPool>, args: string[])
 }
 
 async function main() {
-  const [cmd, sub, arg] = process.argv.slice(2);
+  const argv = process.argv.slice(2);
+  const [cmd, sub, arg, arg2] = argv;
   if (!cmd) {
     console.log(USAGE);
     return;
@@ -177,8 +180,18 @@ async function main() {
     if (cmd === "user" && sub === "add") {
       const u = needUser(arg);
       if (await auth.userExists(u)) fail("Bu kullanıcı zaten var. Şifre için: passwd");
-      await auth.createUser(u, await askNewPassword());
-      console.log("Kullanıcı oluşturuldu: " + u);
+      const rol: Rol = argv.includes("--yonetici") ? "yonetici" : "personel";
+      await auth.createUser(u, await askNewPassword(), rol);
+      console.log(`Kullanıcı oluşturuldu: ${u} (${rol})`);
+    } else if (cmd === "user" && sub === "role") {
+      const u = needUser(arg);
+      if (!ROLLER.includes(arg2 as Rol)) fail("Rol yonetici ya da personel olmalı.");
+      if (arg2 === "personel" && (await auth.activeAdminCount()) <= 1) {
+        const rows = await auth.listUsers();
+        const self = rows.find((r) => r.username === u);
+        if (self?.rol === "yonetici" && self.aktif) fail("Bu son aktif yönetici; önce başka bir yönetici atayın.");
+      }
+      console.log((await auth.setRole(u, arg2 as Rol)) ? `${u} artık ${arg2}.` : "Kullanıcı bulunamadı.");
     } else if (cmd === "user" && sub === "passwd") {
       const u = needUser(arg);
       if (!(await auth.userExists(u))) fail("Kullanıcı bulunamadı.");
@@ -186,11 +199,17 @@ async function main() {
       console.log("Şifre güncellendi, bu kullanıcının açık oturumları kapatıldı.");
     } else if (cmd === "user" && sub === "delete") {
       const u = needUser(arg);
+      const self = (await auth.listUsers()).find((r) => r.username === u);
+      if (self?.rol === "yonetici" && self.aktif && (await auth.activeAdminCount()) <= 1) {
+        fail("Bu son aktif yönetici; önce başka bir yönetici atayın.");
+      }
       console.log((await auth.deleteUser(u)) ? "Kullanıcı silindi: " + u : "Kullanıcı bulunamadı.");
     } else if (cmd === "user" && sub === "list") {
       const rows = await auth.listUsers();
       if (!rows.length) console.log("(kullanıcı yok)");
-      for (const r of rows) console.log(r.username + "\t" + r.created_at.toISOString());
+      for (const r of rows) {
+        console.log([r.username, r.rol, r.aktif ? "aktif" : "pasif", r.createdAt.toISOString()].join("\t"));
+      }
     } else if (cmd === "import-legacy") {
       await importLegacy(pool, process.argv.slice(3));
     } else {

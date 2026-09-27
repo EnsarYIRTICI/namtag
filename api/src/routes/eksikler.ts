@@ -1,9 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
+import { ayarlariOku } from "../ayarlar";
 import type { Deps } from "../deps";
-
-/** Kaç gün geriye bakılır (dün dahil, bugün hariç). */
-export const EKSIK_GUN_PENCERESI = 30;
+import { kaydet } from "../islemKaydi";
 
 const gunSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tarih YYYY-AA-GG biçiminde olmalı.");
 
@@ -12,13 +11,14 @@ const gunSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tarih YYYY-AA-GG biç
  * künye arşivde varsa. Hal künyesinin bildirim tarihi alım günüdür, bu yüzden evrak dosyasının adına ya da
  * yükleme zamanına değil bildirim tarihine bakılır.
  *
- * Pencere: son 30 gün, bugün hariç (sabah evrakı henüz yüklenmemiş olabilir). Sistemdeki ilk künyeden önceki
+ * Pencere: son N gün (ayarlar: eksikGunPenceresi, varsayılan 30), bugün hariç (sabah evrakı henüz yüklenmemiş olabilir). Sistemdeki ilk künyeden önceki
  * günler sayılmaz. "Alım yapılmadı" diye işaretlenen günler eksik sayılmaz.
  */
 export function eksiklerRoutes(d: Deps): Router {
   const r = Router();
 
   r.get("/eksikler", async (_req, res) => {
+    const pencere = (await ayarlariOku(d.pool)).eksikGunPenceresi;
     const q = await d.pool.query(
       `WITH bugun AS (SELECT (now() AT TIME ZONE 'Europe/Istanbul')::date AS g),
             ilk AS (SELECT min((bildirim_ts AT TIME ZONE 'Europe/Istanbul')::date) AS g FROM kunyeler),
@@ -47,11 +47,11 @@ export function eksiklerRoutes(d: Deps): Router {
          LEFT JOIN eksik_gun_muaf m ON m.gun = g.gun
         WHERE NOT EXISTS (SELECT 1 FROM dolu WHERE dolu.gun = g.gun)
         ORDER BY g.gun DESC`,
-      [EKSIK_GUN_PENCERESI],
+      [pencere],
     );
     const rows = q.rows as { gun: string; muaf: boolean; isaretleyen: string }[];
     res.json({
-      pencereGun: EKSIK_GUN_PENCERESI,
+      pencereGun: pencere,
       eksik: rows.filter((x) => !x.muaf).map((x) => x.gun),
       muaf: rows.filter((x) => x.muaf).map((x) => ({ gun: x.gun, isaretleyen: x.isaretleyen })),
     });
@@ -77,6 +77,7 @@ export function eksiklerRoutes(d: Deps): Router {
       }
       throw e;
     }
+    await kaydet(d.pool, req, "muaf_isaretle", { gun: g.data });
     res.json({ ok: true });
   });
 
@@ -88,7 +89,8 @@ export function eksiklerRoutes(d: Deps): Router {
       return;
     }
     try {
-      await d.pool.query("DELETE FROM eksik_gun_muaf WHERE gun = $1::date", [g.data]);
+      const del = await d.pool.query("DELETE FROM eksik_gun_muaf WHERE gun = $1::date", [g.data]);
+      if (del.rowCount) await kaydet(d.pool, req, "muaf_geri_al", { gun: g.data });
     } catch (e: any) {
       if (e?.code === "22008" || e?.code === "22007") {
         res.status(400).json({ error: "Geçersiz tarih." });
